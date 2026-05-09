@@ -101,4 +101,4 @@ docker compose -f docker-compose.dev.yml up -d --build api
 | Phase 1 / Week 1 | `terraform/` (VPC, ECS, RDS, ElastiCache, S3, ECR, ALB, WAF, Route53, CloudFront, IAM, Secrets, CloudWatch) | week 1 |
 | Phase 1 / Day 5 | `helm/` chart for self-hosted enterprise tier | week 1 |
 
-See `Magales/MAGALES-MVP-PLAN.md` for the full plan and rationale.
+See [`MAGALES-MVP-PLAN.md`](./MAGALES-MVP-PLAN.md) for the full plan and rationale.

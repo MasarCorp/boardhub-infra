@@ -2,7 +2,7 @@
 
 > **Status:** ✅ Complete
 > **Goal:** Any developer runs **one command** and gets the full stack (DB, cache, object storage, API, UI) running locally.
-> **Companion docs:** `Magales/MAGALES-MVP-PLAN.md` (overall plan, §6 Docker, §8 Day-by-day)
+> **Companion docs:** [`MAGALES-MVP-PLAN.md`](./MAGALES-MVP-PLAN.md) (overall plan, §6 Docker, §8 Day-by-day)
 
 ---
 
@@ -241,7 +241,7 @@ docker compose -f docker-compose.dev.yml up --build
 
 ## 8. What's next (Day 2)
 
-Per `Magales/MAGALES-MVP-PLAN.md` §8:
+Per [`MAGALES-MVP-PLAN.md`](./MAGALES-MVP-PLAN.md) §8:
 
 1. **Multi-tenancy spine** — `tenant_id` on `BaseEntity`, `Tenant` table, `TenantContext` ThreadLocal, JWT `tid` claim, Hibernate filter, `@PrePersist` listener, sub-domain → tenant resolver, **cross-tenant isolation integration test** (the contract).
 2. **Flyway baseline** — generate `V1__init.sql` from current Hibernate auto-DDL; switch prod profile to `validate`.
