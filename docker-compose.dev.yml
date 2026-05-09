@@ -1,0 +1,117 @@
+# ────────────────────────────────────────────────────────────
+# Magales — local developer stack (Phase 1 / Day 1)
+#
+# This file lives in the magales-infra repo. It expects sibling
+# checkouts of Magales/ and Magales-ui/ at the same parent dir:
+#
+#   masarcorprepos/
+#   ├── Magales/         (Spring Boot backend)
+#   ├── Magales-ui/      (Angular frontend)
+#   └── magales-infra/   ← this file lives here
+#       └── docker-compose.dev.yml
+#
+# Run from inside this directory:
+#   docker compose -f docker-compose.dev.yml up --build
+#   docker compose -f docker-compose.dev.yml down
+#
+# Services:
+#   - postgres (5432)        primary DB; pgvector preinstalled
+#   - redis    (6379)        cache + Nafath state (Day 2+)
+#   - minio    (9000/9001)   S3-compatible object store (Day 5+)
+#   - api      (8080)        Spring Boot backend
+#   - ui       (4200 → 80)   Angular UI served by nginx
+# ────────────────────────────────────────────────────────────
+
+name: magales-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: magales-postgres
+    environment:
+      POSTGRES_DB: magales
+      POSTGRES_USER: magales
+      POSTGRES_PASSWORD: magales-dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U magales -d magales"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: magales-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: magales-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: magales
+      MINIO_ROOT_PASSWORD: magales-dev-secret
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../Magales
+      dockerfile: Dockerfile
+    container_name: magales-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: magales
+      DB_USER: magales
+      DB_PASSWORD: magales-dev
+      JWT_SECRET: dev-jwt-secret-change-me-32-chars-or-more-please-rotate
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: magales
+      S3_SECRET_KEY: magales-dev-secret
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ../Magales-ui
+      dockerfile: Dockerfile
+    container_name: magales-ui
+    depends_on:
+      - api
+    ports:
+      - "4200:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  miniodata:

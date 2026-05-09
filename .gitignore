@@ -1,0 +1,27 @@
+# Local secrets / env overrides
+.env
+.env.local
+*.tfvars
+!terraform.tfvars.example
+
+# Terraform state (will live remotely in S3 once provisioned)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Helm
+charts/*.tgz
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Claude Code
+.claude/
+
+# Logs
+*.log
