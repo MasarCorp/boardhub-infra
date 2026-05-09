@@ -108,6 +108,7 @@ The build/tag/push commands themselves live in each app repo's README — keep t
 
 ## See also
 
+- [`docs/CI-PIPELINE.md`](./docs/CI-PIPELINE.md) — reusable GHCR build/publish workflow blueprint
 - [`../Magales/README.md`](../Magales/README.md) — backend image build & push
 - [`../Magales-ui/README.md`](../Magales-ui/README.md) — UI image build & push
 - [`PHASE-1-DAY-1.md`](./PHASE-1-DAY-1.md) — full Day-1 setup
