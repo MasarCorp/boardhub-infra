@@ -105,6 +105,20 @@ services:
       APP_TENANCY_HOST_SUFFIXES: "magales.app,magales.local,magales.test"
       APP_TENANCY_SIGNUP_DEV_HINT: "true"
       APP_TENANCY_VERIFICATION_BASE_URL: "http://localhost:4200/verify-email"
+      # ── Bootstrap SUPER_ADMIN (Day 2 close-out) ──
+      # If the tenants table is empty AND both of these are non-empty, the API
+      # creates an internal "_platform" tenant + a SUPER_ADMIN user on first
+      # boot. In dev they are left blank because data-postgres.sql already
+      # seeds acme + globex, so the runner is a no-op. Set them when forking
+      # this file for a fresh staging / prod / on-prem deploy.
+      BOOTSTRAP_SUPER_ADMIN_EMAIL: "${BOOTSTRAP_SUPER_ADMIN_EMAIL:-}"
+      BOOTSTRAP_SUPER_ADMIN_PASSWORD: "${BOOTSTRAP_SUPER_ADMIN_PASSWORD:-}"
+      # ── Saynee inbound webhook (Day 2 close-out) ──
+      # HMAC secret for inbound /api/webhooks/saynee/{tenantSlug}. Leave blank
+      # in dev (HMAC verification is skipped; the tenant-slug path still
+      # gates access). Set in staging/prod once the real Saynee account is
+      # provisioned.
+      SAYNEE_WEBHOOK_SECRET: "${SAYNEE_WEBHOOK_SECRET:-}"
     ports:
       - "8080:8080"
     restart: unless-stopped
