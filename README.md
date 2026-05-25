@@ -54,7 +54,9 @@ open http://localhost:4200
 
 Login with seeded user `admin` / `P@ssw0rd`.
 
-For the complete how-to (verification, troubleshooting, port reference, default credentials), see [`PHASE-1-DAY-1.md`](./PHASE-1-DAY-1.md).
+For **URLs, default credentials, smoke-test scenarios, troubleshooting**, see [`runbooks/local-stack-and-smoke-tests.md`](./runbooks/local-stack-and-smoke-tests.md).
+
+For the complete how-to (verification, port reference), see [`PHASE-1-DAY-1.md`](./PHASE-1-DAY-1.md).
 
 For **what to do when code changes** in either app repo (the rebuild loop, and the future registry-based flow), see [`WORKFLOWS.md`](./WORKFLOWS.md).
 
