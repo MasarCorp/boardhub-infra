@@ -28,11 +28,17 @@ are small UI additions on top of the existing stream.)
 Three viable approaches. Notion's own approach is included for comparison, then the recommendation.
 
 ### How Notion AI Meeting Notes actually works (for comparison)
-Notion's **desktop app captures the device mic + system audio in real time** and transcribes/
-summarizes — it is **not** a Teams API integration; it works across Zoom/Meet/Teams because it
-records whatever the device plays. It cannot ingest pre-recorded files (real-time only). System-
-audio capture requires the **desktop app** (a browser SPA cannot reliably capture system audio).
-➡️ **Not a clean fit for our web app** — we'd need a desktop/Electron client to mimic it.
+Notion runs **both web and desktop**, but with different capture power:
+- **Web (browser):** works, but **mic-only** — it transcribes your microphone. It does **not**
+  capture system/conferencing audio digitally; with headphones, other participants are missed
+  (without headphones the mic may pick them up acoustically). Notion nudges you to the desktop app.
+- **Desktop app:** captures **mic + system audio** in real time (OS screen-recording permission),
+  so it gets all participants even with headphones. It's **not** a Teams API integration — it
+  records whatever the device plays (works across Zoom/Meet/Teams/in-person). Real-time only
+  (no file upload).
+
+➡️ Takeaway: a **web** app *can* do mic capture (like Notion web), and can do **better** than
+Notion web by also using the browser tab/screen-audio API (`getDisplayMedia`) — see Option D.
 
 ### Option A — Microsoft Graph, post-meeting transcript/recording (RECOMMENDED)
 After a Teams meeting with transcription on, fetch the transcript via Graph:
@@ -54,6 +60,27 @@ our existing **transcript → AI Minutes draft → review → save** workflow.
 action items and mentions. Requires an **M365 Copilot licence per user** (cost). Useful as an
 extra source, but our LLM still produces the governance-formatted minutes. Optional add-on.
 
+### Option D — In-browser capture in OUR web app (Notion-web-like, but stronger) ⭐
+Record the meeting **inside the Magales web app** and send the audio to our Whisper pipeline — no
+Azure/Teams app, works for Teams/Zoom/Meet/in-person:
+- **Mic** via `getUserMedia({audio:true})` — always available (covers in-person board meetings and
+  your own voice). Same capability as Notion web.
+- **Meeting audio** via `getDisplayMedia({audio:true})` — the user shares the **Teams/Zoom tab**
+  (or screen) **with audio**, capturing all participants digitally even with headphones. This is
+  what Notion web does NOT do.
+- Mix mic + tab streams → `MediaRecorder` (webm/opus) → upload to `POST /v1/transcribe` (Whisper)
+  → AI Minutes draft → review → save. Can chunk every N seconds for near-real-time, or record the
+  whole meeting and transcribe at the end.
+
+Caveats: `getDisplayMedia` audio is best on **Chromium desktop** (Chrome/Edge) — tab audio works
+well; full system audio is Windows-only; macOS shares tab audio, not full system audio. Safari/
+Firefox are limited. Mic always works. Requires the user to click "share tab + share audio".
+
+➡️ **Best web-native fit**: closest to Notion without a desktop app, no Microsoft licensing/Azure,
+and it reuses everything we already built (Whisper → minutes). Recommended alongside Option A
+(Option A = authoritative transcript when the meeting is in Teams with transcription on; Option D =
+universal in-app recorder when it isn't).
+
 ### Option C — Real-time bot (Notion-live-like)
 A Teams bot (Azure Bot + Graph **Communications calling** API, `Calls.AccessMedia.All`,
 application-hosted media) that joins the call and consumes live media/captions. **Heavy infra**
@@ -66,9 +93,10 @@ captions become a hard requirement.
 
 | Phase | What | Effort | Status |
 | --- | --- | --- | --- |
-| 0 | **Upload the Teams recording (mp4/wav) → Whisper `/v1/transcribe` → AI Minutes draft → save.** Or paste the VTT transcript. Works today; needs only the **audio→minutes UI wiring** in the panel/meeting page. | Small | Pipeline done (Whisper + minutes); UI wiring pending |
-| A | **Teams Graph integration:** Azure AD app registration; link a Magales meeting to a Teams `onlineMeeting`; after the meeting, fetch the VTT via `getAllTranscripts` (or a change-notification subscription) → AI Minutes draft. Store per-tenant OAuth tokens in Magales `IntegrationConfig` (encrypted, like the Saynee pattern). | Medium | Plan |
-| B | **Optional:** pull Teams AI Insights (Copilot) as an extra source for tenants that have it. | Small-Med | Optional |
+| 0 | **Upload a recording (mp4/wav) or paste a VTT** → Whisper `/v1/transcribe` → AI Minutes draft → save. Works today; needs only the **audio→minutes UI wiring**. | Small | Pipeline done; UI wiring pending |
+| **D** ⭐ | **In-app recorder (web):** mic (`getUserMedia`) + optional tab/screen audio (`getDisplayMedia`) → `MediaRecorder` → `/v1/transcribe` → minutes. Notion-web-like, universal (Teams/Zoom/Meet/in-person), no Azure. | Medium | Plan (recommended near-term) |
+| A | **Teams Graph integration:** Azure AD app; link a Magales meeting to a Teams `onlineMeeting`; fetch the authoritative VTT via `getAllTranscripts`/subscription → minutes. Tokens in Magales `IntegrationConfig` (encrypted). | Medium | Plan (when meeting is in Teams w/ transcription) |
+| B | **Optional:** pull Teams AI Insights (Copilot) as an extra source. | Small-Med | Optional |
 | C | **Optional:** real-time bot for live captions. | Large | Likely out of scope |
 
 ### Why Option A over the Notion model
