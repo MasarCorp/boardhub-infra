@@ -97,6 +97,7 @@ services:
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: magales
       S3_SECRET_KEY: magales-dev-secret
+      S3_BUCKET: magales-docs
       # ── Tenancy (Day 2) ──
       # In dev only, when no sub-domain matches and no X-Tenant-Slug header is sent,
       # fall back to the "acme" tenant. NEVER true in prod.
@@ -178,11 +179,17 @@ services:
       GROQ_API_KEY: "${GROQ_API_KEY:-}"
       # Host's Ollama (self-host path). Reached via host.docker.internal, not localhost.
       OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      # Whisper ASR (Phase 4 audio → minutes); model cached in the volume below.
+      WHISPER_MODEL: "${WHISPER_MODEL:-base}"
+      HF_HOME: "/models/hf"
+      # Scheduled insights (Phase 5): tenants to refresh + interval.
+      INSIGHTS_TENANTS_CSV: "${INSIGHTS_TENANTS_CSV:-acme,globex}"
+      INSIGHTS_REFRESH_MINUTES: "${INSIGHTS_REFRESH_MINUTES:-30}"
     extra_hosts:
       # Make host.docker.internal resolvable (automatic on Docker Desktop; explicit for Linux).
       - "host.docker.internal:host-gateway"
     volumes:
-      # Cache for the local embedding model (Phase 2) so it isn't re-downloaded per run.
+      # Cache for the local embedding + Whisper models so they aren't re-downloaded per run.
       - aimodelcache:/models
     ports:
       - "8081:8081"
