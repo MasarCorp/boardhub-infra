@@ -1,0 +1,61 @@
+# AI Meeting Notes — lifecycle-integrated design (Summary / Notes / Transcript)
+
+Goal: mirror the Notion AI Meeting Notes UX **inside our meeting lifecycle** — when a meeting is
+**started** it records, when it **ends** the system automatically produces the three artifacts
+(**Summary · Notes · Transcript**) shown as tabs on that meeting. Reuse what exists; build only the gaps.
+
+## We already have the skeleton — don't reinvent
+
+| Notion piece | Our equivalent (exists) | Reuse |
+| --- | --- | --- |
+| "Start meeting" | `PATCH /api/meetings/{id}/start` → `IN_PROGRESS` (the existing **Start meeting** button) | start the recorder here |
+| "Meeting is done" auto-trigger | `PATCH /api/meetings/{id}/end` → `COMPLETED` (the **End meeting** button) | run the AI pipeline on success |
+| **Summary** tab | `Minutes.executiveSummary` | LLM fills it |
+| **Notes** tab | `Minutes.contentAr` / `contentEn` (structured minutes) | existing AI-minutes draft + `save_minutes` |
+| **Transcript** tab | Whisper `POST /v1/transcribe` output | generation exists; **storage is the gap** |
+| Record audio (web) | — | Option D in-browser capture (`getUserMedia` + optional `getDisplayMedia`) |
+| Minutes review/approve | `MinutesStatus` DRAFT→…, minutes comments/approval flow | existing |
+
+Meeting states: `DRAFT → SCHEDULED → IN_PROGRESS → COMPLETED` (+ CANCELLED/POSTPONED).
+
+## End-to-end flow (lifecycle-integrated)
+
+1. **Start meeting** (`/start` → IN_PROGRESS): meeting page shows a **Recording** indicator and a
+   consent notice; browser captures **mic** (`getUserMedia`) and, optionally, the **Teams/Zoom tab
+   audio** (`getDisplayMedia({audio:true})`). (Recording lives in the browser; chunk-upload for long
+   meetings, or one blob at the end.)
+2. **End meeting** (`/end` → COMPLETED) — the auto-trigger:
+   - stop recorder → upload audio → `POST /v1/transcribe` (Whisper) → **transcript**;
+   - `POST /v1/minutes/generate {meeting_id, transcript}` → LLM returns **{executiveSummary,
+     contentAr, contentEn, actionItems[]}** grounded in the agenda + transcript;
+   - persist a `Minutes` **draft** carrying Notes (content) + Summary (executiveSummary) + the
+     **transcript**, plus the audio stored as a linked Document (storage layer we built);
+   - the meeting page reveals **Summary | Notes | Transcript** tabs (editable, review → approve).
+3. **Action items**: from `actionItems[]`, offer one-click create via the existing `create_task` /
+   `POST /api/tasks` (source=MINUTES) — already built.
+
+## Gaps to build (next steps, in order)
+
+1. **Store the transcript** (backend): add `transcript` (text/LOB) to `Minutes` + `MinutesCreateRequest`/
+   `MinutesResponse`. Store the **audio** as a `Document` (via the new MinIO layer) linked to the meeting
+   for audit/replay. *Small.*
+2. **Generate endpoint** (ai-services): `POST /v1/minutes/generate {meeting_id, transcript}` → structured
+   `{executiveSummary, contentAr, contentEn, actionItems[]}` (LLM, JSON). *Small.* Reuses agenda fetch.
+3. **In-app recorder** (frontend, Option D): mic + optional tab audio → `MediaRecorder`; tied to
+   Start/End; visible recording state + **consent notice**. *Medium.*
+4. **Auto-pipeline on End** (frontend orchestrates, since audio is in the browser): on `/end` success →
+   transcribe → generate → save Minutes → show tabs. *Medium.*
+5. **3-tab UI** on the (completed) meeting page: **Summary / Notes / Transcript**, editable, with
+   "regenerate", "save", "approve", and "create tasks from actions". *Medium.*
+6. **Robustness/governance**: chunked upload + progressive transcription for long meetings; **recording
+   consent + retention policy** (board meetings — compliance); per-tenant on/off. *Medium.*
+
+## How the two capture sources converge
+- **Option D (in-app recorder)** → audio → Whisper → transcript → the same `generate` + tabs.
+- **Option A (Teams Graph)** → authoritative VTT → straight into `generate` + tabs (no Whisper).
+Both fill the **same** Summary/Notes/Transcript on the meeting — pick the source per meeting.
+
+## Reuse summary (already shipped)
+Whisper transcribe · AI minutes draft + `save_minutes` · `create_task` (actions) · MinIO storage ·
+`Minutes` (content + executiveSummary) · meeting start/end lifecycle · streaming panel.
+**New build = transcript storage + `/v1/minutes/generate` + recorder + 3-tab UI + End auto-trigger.**
