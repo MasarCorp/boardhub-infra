@@ -34,6 +34,23 @@ Meeting states: `DRAFT → SCHEDULED → IN_PROGRESS → COMPLETED` (+ CANCELLED
 3. **Action items**: from `actionItems[]`, offer one-click create via the existing `create_task` /
    `POST /api/tasks` (source=MINUTES) — already built.
 
+## Build status
+
+**Stage 1 — backend + AI generate: DONE 2026-06-13 (validated).**
+- `MeetingNote` entity/repo/DTOs + owner-scoped service & controller `/api/meeting-notes`
+  (create / list-mine / get / update / link / delete). **Each note is owned by its creator**
+  (`ownerId`); only the owner can edit/link/delete. Validated: create 201; owner edit 200;
+  **non-owner edit 403**; ownership isolation (other user sees 0); owner link→meeting 200.
+- ai-services `POST /v1/meeting-notes/generate {transcript, meeting_id?}` →
+  `{summary, notesAr, notesEn, actionItems[]}` (LLM, grounded in the agenda). Proxy
+  `POST /api/ai/assist/meeting-notes/generate`. Validated: produced Arabic summary + bilingual
+  notes + extracted action item.
+- Decision model confirmed: per-user ownership (panel note → panel user; meeting note → meeting
+  owner; other attendees keep their own note in their own space).
+
+**Stage 2 — frontend (pending):** My Meeting Notes history + 3-tab view; panel "AI Meeting Notes";
+in-app recorder (Option D) + consent; meeting End auto-trigger. (Items 3–6 below.)
+
 ## Gaps to build (next steps, in order)
 
 1. **Store the transcript** (backend): add `transcript` (text/LOB) to `Minutes` + `MinutesCreateRequest`/
