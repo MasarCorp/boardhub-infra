@@ -87,3 +87,51 @@ Both fill the **same** Summary/Notes/Transcript on the meeting — pick the sour
 Whisper transcribe · AI minutes draft + `save_minutes` · `create_task` (actions) · MinIO storage ·
 `Minutes` (content + executiveSummary) · meeting start/end lifecycle · streaming panel.
 **New build = transcript storage + `/v1/minutes/generate` + recorder + 3-tab UI + End auto-trigger.**
+
+---
+
+## Session update — 2026-06-13 (testing feedback round)
+
+Shipped in response to live test feedback. All validated against the running dev stack.
+
+### 1. Live recorder ON the meeting page (was a gap above — now closed)
+- `MeetingDetailComponent` shows a **"Record this meeting"** card while the meeting is `IN_PROGRESS`.
+- Consent checkbox + two buttons (see #4). On **Stop & generate** it runs
+  `transcribe → /meeting-notes/generate → create MeetingNote (source=MEETING, linkedMeetingId)`
+  and surfaces an **Open notes** link. No raw ids touched by the user.
+- The older entry point (button → `/meeting-notes?record=1&meetingId=`) still works for ad-hoc capture.
+
+### 2. Smart `create_decision` agent action (parity with `create_meeting`)
+- New Strands tool in `assist_agent.py`. Resolves **board** by name/code/UUID and an **optional
+  meeting** by number/title/UUID — the user never types an id.
+- Required by the backend and gathered/confirmed by the agent: `decisionNumber`, `titleAr`,
+  `issuedDate`, **`category`** (`STRATEGIC|FINANCIAL|OPERATIONAL|LEGAL|HR|IT|OTHER`). Posts to
+  `POST /api/decisions`. Validated: created `2026-502` with a clickable `[n]` reference.
+- **Backend bug fixed along the way:** `Decision.progressPercent` (NOT NULL) lacked `@Builder.Default`,
+  so every decision insert failed with a 500 (null `progress_percent`). Added `@Builder.Default` —
+  the same class of bug previously fixed for `Document.currentVersion`.
+
+### 3. In-panel board/committee picker (interactive choices, not a typed name)
+- `present_board_choices` tool sets `state.choices = {kind, prompt, options[]}`.
+- `agent.py` emits an SSE `event: choices` frame (and a `choices` field on the non-stream response).
+- The Angular panel parses it (`AiAssistService.handleFrame` → `AssistMessage.choices`) and renders
+  the options as buttons; clicking one calls `pick()` → sends the chosen value as the next turn and
+  locks the picker. Used before `create_meeting`/`create_decision`.
+
+### 4. Recorder screen-share UX (fix: mic-only must never prompt)
+- Replaced the single "Start recording" + tab-audio checkbox with **two explicit buttons**:
+  **🎙 Record (microphone)** — mic only, never calls `getDisplayMedia`, so **no screen/tab prompt**;
+  **🖥 Record + meeting audio** — also captures a meeting tab's sound, which the browser can *only* do
+  via the tab-share picker (there is no other web API). A hint line explains the difference.
+- Applied to both the `/meeting-notes` recorder modal and the in-meeting recorder card.
+
+### 5. Link-to-meeting uses a dropdown, not a raw id
+- `MeetingNoteDetailComponent` "Link to meeting" now loads `MeetingService.list()` into a `<select>`
+  (label `meetingNumber — title`) instead of a free-text "meeting id" field.
+
+### 6. Arabic ASR accuracy → `WHISPER_MODEL=medium`
+- Garbled Arabic transcripts (and the wrong summaries downstream) were caused by `small`.
+- Default bumped to **`medium`** (compose + `config.py`); set `WHISPER_MODEL=large-v3` for best Arabic
+  at the cost of a heavier download and slower CPU inference. `transcribe.py` already forces
+  `language=ar` + an MSA governance `initial_prompt` + `beam_size=5`. Validated the medium model
+  downloads into `aimodelcache` and transcribes cleanly.

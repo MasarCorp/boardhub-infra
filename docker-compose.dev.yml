@@ -182,7 +182,9 @@ services:
       # Host's Ollama (self-host path). Reached via host.docker.internal, not localhost.
       OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
       # Whisper ASR (Phase 4 audio → minutes); model cached in the volume below.
-      WHISPER_MODEL: "${WHISPER_MODEL:-small}"
+      # Arabic accuracy is poor on "small"; "medium" is the CPU sweet spot. For the best
+      # Arabic transcription set WHISPER_MODEL=large-v3 (heavier download + slower on CPU).
+      WHISPER_MODEL: "${WHISPER_MODEL:-medium}"
       HF_HOME: "/models/hf"
       # Scheduled insights (Phase 5): tenants to refresh + interval.
       INSIGHTS_TENANTS_CSV: "${INSIGHTS_TENANTS_CSV:-acme,globex}"
