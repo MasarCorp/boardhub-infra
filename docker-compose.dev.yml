@@ -98,6 +98,8 @@ services:
       S3_ACCESS_KEY: magales
       S3_SECRET_KEY: magales-dev-secret
       S3_BUCKET: magales-docs
+      # Dev: no SMTP server runs locally, so don't gate health on the mail indicator.
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
       # ── Tenancy (Day 2) ──
       # In dev only, when no sub-domain matches and no X-Tenant-Slug header is sent,
       # fall back to the "acme" tenant. NEVER true in prod.
