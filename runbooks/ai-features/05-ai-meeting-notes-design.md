@@ -48,8 +48,19 @@ Meeting states: `DRAFT → SCHEDULED → IN_PROGRESS → COMPLETED` (+ CANCELLED
 - Decision model confirmed: per-user ownership (panel note → panel user; meeting note → meeting
   owner; other attendees keep their own note in their own space).
 
-**Stage 2 — frontend (pending):** My Meeting Notes history + 3-tab view; panel "AI Meeting Notes";
-in-app recorder (Option D) + consent; meeting End auto-trigger. (Items 3–6 below.)
+**Stage 2 — frontend: DONE 2026-06-13 (validated).**
+- `MeetingNoteService` + `RecorderService` (mic + optional tab audio via `getDisplayMedia`).
+- **My Meeting Notes** page (`/meeting-notes`, sidebar nav) + **3-tab** detail (Summary / Notes /
+  Transcript), owner-edit + link-to-meeting. Note markdown rendered via `marked`.
+- In-app **recorder** with a **consent gate** + a **paste-transcript** fallback; flow:
+  transcribe → generate → create note → open it.
+- Panel `+` **"🎙 AI Meeting Notes"** (ad-hoc, or scoped to the current meeting) + a meeting-page
+  **"🎙 AI Meeting Notes"** button.
+- Backend `POST /api/ai/assist/transcribe` multipart proxy → Whisper.
+- Validated end-to-end via API: audio→transcript→summary/notes→MeetingNote (201, owner-scoped).
+- **Follow-up:** true *live capture during the meeting* (recorder hosted on the meeting page across
+  Start→End with auto-generate on End) — current entry point is a button that opens the recorder
+  scoped to the meeting.
 
 ## Gaps to build (next steps, in order)
 
