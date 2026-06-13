@@ -155,3 +155,20 @@ and the UI was **forcing `language=en`** so Arabic speech got transcribed/transl
 - **Proxy**: `AiAssistController#transcribe` forwards `provider` alongside `language`.
 - Validated end-to-end with the real OpenRouter key on Arabic + English audio: both engines return the
   correct spoken-language transcript with no repetition.
+
+### 8. "Create a decision/task from THIS meeting note" (context + non-blocking draft)
+On a meeting-note page the AI panel said *"I can't see the page you're browsing"* and fell back to
+`list_meetings`, because `/meeting-notes/:id` was never mapped and the note is **owner-scoped** (the
+agent can't fetch it over the internal HMAC path).
+- **Frontend pushes the facts it already has.** `AiAssistService.setEntity({type, id, label, facts})`
+  (cleared on navigation); `MeetingNoteDetailComponent` registers the note's title/linkedMeetingId/
+  summary/notes/actionItems/transcript (clipped). `ask()` sends `scope_kind/scope_id/scope_facts`.
+- **Backend** `AgentRequest.scope_facts`: when present, used directly as the scope context (skips
+  `fetch_scope_context`) — so the agent acts on "this note".
+- **Decision needs a board, not a meeting.** Prompt clarified: a decision always needs a
+  board/committee (via `present_board_choices`); a meeting link is OPTIONAL. New tool
+  **`present_meeting_choices`** offers a clickable meeting picker for linking (frontend renders any
+  `state.choices` kind generically).
+- **Never a blocker.** If the user won't assign a board / link a meeting, the agent does NOT refuse —
+  it DRAFTS the full decision inline (number, titleAr+titleEn, category, body, action items) for
+  copy-paste, and offers to file it for real once they pick a board. Validated both paths.
