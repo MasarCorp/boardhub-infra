@@ -181,9 +181,13 @@ services:
       GROQ_API_KEY: "${GROQ_API_KEY:-}"
       # Host's Ollama (self-host path). Reached via host.docker.internal, not localhost.
       OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
-      # Whisper ASR (Phase 4 audio → minutes); model cached in the volume below.
+      # Speech-to-text engine: "openrouter" (audio-input LLM, best Arabic; uses OPENROUTER_API_KEY)
+      # or "whisper" (local faster-whisper, on-device). The UI can also override per recording.
+      TRANSCRIBE_PROVIDER: "${TRANSCRIBE_PROVIDER:-openrouter}"
+      TRANSCRIBE_OPENROUTER_MODEL: "${TRANSCRIBE_OPENROUTER_MODEL:-google/gemini-2.5-flash}"
+      # Whisper ASR (local backend / fallback); model cached in the volume below.
       # Arabic accuracy is poor on "small"; "medium" is the CPU sweet spot. For the best
-      # Arabic transcription set WHISPER_MODEL=large-v3 (heavier download + slower on CPU).
+      # local Arabic transcription set WHISPER_MODEL=large-v3 (heavier download + slower on CPU).
       WHISPER_MODEL: "${WHISPER_MODEL:-medium}"
       HF_HOME: "/models/hf"
       # Scheduled insights (Phase 5): tenants to refresh + interval.

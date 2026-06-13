@@ -132,6 +132,26 @@ Shipped in response to live test feedback. All validated against the running dev
 ### 6. Arabic ASR accuracy → `WHISPER_MODEL=medium`
 - Garbled Arabic transcripts (and the wrong summaries downstream) were caused by `small`.
 - Default bumped to **`medium`** (compose + `config.py`); set `WHISPER_MODEL=large-v3` for best Arabic
-  at the cost of a heavier download and slower CPU inference. `transcribe.py` already forces
-  `language=ar` + an MSA governance `initial_prompt` + `beam_size=5`. Validated the medium model
-  downloads into `aimodelcache` and transcribes cleanly.
+  at the cost of a heavier download and slower CPU inference.
+
+### 7. Pluggable transcription engine + repetition/language fixes (follow-up round)
+Two further bugs showed up in testing: Whisper **looped** ("كيف حالكم؟ ×10", "How are you? I'm fine ×N")
+and the UI was **forcing `language=en`** so Arabic speech got transcribed/translated into English.
+- **`app/transcription.py`** (new) — pluggable STT with two backends, selectable via
+  `TRANSCRIBE_PROVIDER` env or a per-request `?provider=`:
+  - **`openrouter`** (default): an audio-INPUT multimodal LLM (default `google/gemini-2.5-flash`) via
+    OpenRouter chat completions with an `input_audio` part. Strong Arabic; transcribes verbatim in the
+    original spoken language. Audio is decoded webm/opus→16 kHz mono WAV in-memory with **PyAV** (no
+    ffmpeg CLI in the image). Uses `OPENROUTER_API_KEY`. Falls back to local Whisper on any error.
+  - **`whisper`**: local faster-whisper, now with temperature-fallback + `compression_ratio_threshold`/
+    `log_prob_threshold` + `repetition_penalty=1.15` + `no_repeat_ngram_size=3` to kill the loop, and
+    **auto language detection** (no longer forces the UI language).
+  > Note: OpenRouter's `output_modalities=audio` models are *text-to-speech*; transcription uses
+  > *audio-input* chat models instead. OpenRouter has no dedicated `/audio/transcriptions` endpoint.
+- **Frontend**: recorder modal gains a **Spoken language** selector (Auto/AR/EN, default Auto — never
+  the UI language) and a **Transcription engine** selector (Cloud AI / On-device Whisper). The summary
+  is generated in the *spoken/detected* language, falling back to the UI language. The meeting-page
+  live recorder auto-detects + uses the server-default engine.
+- **Proxy**: `AiAssistController#transcribe` forwards `provider` alongside `language`.
+- Validated end-to-end with the real OpenRouter key on Arabic + English audio: both engines return the
+  correct spoken-language transcript with no repetition.
