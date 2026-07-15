@@ -108,26 +108,15 @@ services:
       S3_ACCESS_KEY: magales
       S3_SECRET_KEY: magales-dev-secret
       # ── Tenancy (Day 2) ──
-      # In dev only, when no sub-domain matches and no X-Tenant-Slug header is sent,
-      # fall back to the "acme" tenant. NEVER true in prod.
       APP_TENANCY_ALLOW_DEFAULT_TENANT: "true"
       APP_TENANCY_DEFAULT_TENANT_SLUG: "acme"
       APP_TENANCY_HOST_SUFFIXES: "magales.app,magales.local,magales.test"
       APP_TENANCY_SIGNUP_DEV_HINT: "true"
       APP_TENANCY_VERIFICATION_BASE_URL: "http://localhost:4200/verify-email"
-      # ── Bootstrap SUPER_ADMIN (Day 2 close-out) ──
-      # If the tenants table is empty AND both of these are non-empty, the API
-      # creates an internal "_platform" tenant + a SUPER_ADMIN user on first
-      # boot. In dev they are left blank because data-postgres.sql already
-      # seeds acme + globex, so the runner is a no-op. Set them when forking
-      # this file for a fresh staging / prod / on-prem deploy.
+      # ── Bootstrap SUPER_ADMIN ──
       BOOTSTRAP_SUPER_ADMIN_EMAIL: "${BOOTSTRAP_SUPER_ADMIN_EMAIL:-}"
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: "${BOOTSTRAP_SUPER_ADMIN_PASSWORD:-}"
-      # ── Saynee inbound webhook (Day 2 close-out) ──
-      # HMAC secret for inbound /api/webhooks/saynee/{tenantSlug}. Leave blank
-      # in dev (HMAC verification is skipped; the tenant-slug path still
-      # gates access). Set in staging/prod once the real Saynee account is
-      # provisioned.
+      # ── Saynee webhook ──
       SAYNEE_WEBHOOK_SECRET: "${SAYNEE_WEBHOOK_SECRET:-}"
       # ── Mail (MailHog in dev) ──
       MAIL_HOST: mailhog
@@ -139,13 +128,41 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
+  # ── Node.js mock API (from Magales-ui/server) ──────────
+  # Lightweight Express server that seeds its own schema and
+  # provides auth, meetings, decisions, boards, tasks, reports,
+  # signatures, and settings endpoints for frontend dev.
+  mock-api:
+    build:
+      context: ../Magales-ui/server
+      dockerfile: Dockerfile
+    container_name: magales-mock-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: magales
+      DB_USER: magales
+      DB_PASSWORD: magales-dev
+      PORT: 8080
+    ports:
+      - "8085:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const s=require('net').createConnection(8080,'localhost');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   ui:
     build:
       context: ../Magales-ui
       dockerfile: Dockerfile
     container_name: magales-ui
     depends_on:
-      api:
+      mock-api:
         condition: service_healthy
     ports:
       - "4200:80"
