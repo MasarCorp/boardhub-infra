@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────
+# Repo self-CI.
+#
+# docker-publish.yml is a *reusable* workflow (on: workflow_call) and
+# cannot run on its own, so this file gives boardhub-infra its own CI:
+# it lints the shell scripts, the workflows, the YAML, and validates
+# the dev compose file.
+#
+# Every step is ERRORS-ONLY (warnings never fail the build) and can be
+# skipped individually via workflow_dispatch, e.g. skip = "yamllint,actionlint".
+# ─────────────────────────────────────────────────────────────────
+name: validate
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      skip:
+        description: "Comma-separated list of steps to skip (shellcheck,actionlint,yamllint,compose)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── shellcheck: errors only, over the CI helper scripts ──
+      - name: shellcheck
+        if: ${{ !contains(inputs.skip, 'shellcheck') }}
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable \
+            -S error scripts/ci/*.sh
+          echo "### shellcheck (errors only): passed" >> "$GITHUB_STEP_SUMMARY"
+
+      # ── actionlint: lint the GitHub Actions workflows ──
+      - name: actionlint
+        if: ${{ !contains(inputs.skip, 'actionlint') }}
+        uses: raven-actions/actionlint@v2
+        with:
+          fail-on-error: true
+
+      - name: actionlint summary
+        if: ${{ !contains(inputs.skip, 'actionlint') && always() }}
+        run: |
+          echo "### actionlint - completed" >> "$GITHUB_STEP_SUMMARY"
+
+      # ── yamllint: relaxed profile, errors only ──
+      - name: yamllint
+        if: ${{ !contains(inputs.skip, 'yamllint') }}
+        run: |
+          docker run --rm -v "$PWD:/data" -w /data cytopia/yamllint:latest \
+            -d relaxed -f parsable --no-warnings .
+          echo "### yamllint (relaxed, errors only): passed" >> "$GITHUB_STEP_SUMMARY"
+
+      # ── compose: structural validation of the dev stack ──
+      - name: compose config
+        if: ${{ !contains(inputs.skip, 'compose') }}
+        run: |
+          docker compose -f docker-compose.dev.yml config --quiet
+          echo "### docker compose config: valid" >> "$GITHUB_STEP_SUMMARY"
