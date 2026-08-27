@@ -7,22 +7,26 @@ ops runbooks. **App code lives in sibling repos** — this repo builds them.
 ## Required layout (siblings)
 
 All repos must sit next to each other under one parent directory. The compose
-file builds from `../Magales`, `../Magales-ui`, and `../ai-services`, so this is
-not optional:
+file builds from `../boardhub`, `../boardhub-ui`, and `../boardhub-ai-services`,
+so this is not optional:
 
 ```
-masarcorprepos/
-├── Magales/         ← Spring Boot backend  (built as `api`)
-├── Magales-ui/      ← Angular frontend      (built as `ui`)
-├── ai-services/     ← Python AI services    (built as `ai-services`)
-└── boardhub-infra/  ← you are here
+boardhub/                    ← parent directory
+├── boardhub/                ← Spring Boot backend  (built as `api`)
+├── boardhub-ui/             ← Angular frontend      (built as `ui`)
+├── boardhub-ai-services/    ← Python AI services    (built as `ai-services`)
+└── boardhub-infra/          ← you are here
     └── docker-compose.dev.yml
 ```
 
-> **NOTE:** These folder names (`Magales`, `Magales-ui`, `ai-services`) are the
-> current on-disk names. They will be renamed to `boardhub-*` as part of the
-> rebrand. When that happens, update the `build.context` paths in
-> `docker-compose.dev.yml` to match.
+Clone them together:
+
+```bash
+git clone git@github.com:MasarCorp/boardhub.git
+git clone git@github.com:MasarCorp/boardhub-ui.git
+git clone git@github.com:MasarCorp/boardhub-ai-services.git
+git clone git@github.com:MasarCorp/boardhub-infra.git
+```
 
 ## 1. Prerequisites
 
@@ -92,6 +96,63 @@ GROQ_API_KEY=...
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
+## 6. Run from pre-built GHCR images (no local build)
+
+CI publishes each app image to **GitHub Container Registry** on every push to
+`develop`/`main`:
+
+| Image | Tags |
+|---|---|
+| `ghcr.io/masarcorp/boardhub-api` | `develop`, `main`, `sha-<short>`, `latest` (on `main`) |
+| `ghcr.io/masarcorp/boardhub-ui` | `develop`, `main`, `sha-<short>`, `latest` |
+| `ghcr.io/masarcorp/boardhub-ai-services` | `develop`, `main`, `sha-<short>`, `latest` |
+
+These packages are **private**, so authenticate first with a GitHub token that
+has the **`read:packages`** scope (classic PAT from GitHub → Settings →
+Developer settings, or `gh auth token`):
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <your-github-username> --password-stdin
+```
+
+Pull the images:
+
+```bash
+docker pull ghcr.io/masarcorp/boardhub-api:develop
+docker pull ghcr.io/masarcorp/boardhub-ui:develop
+docker pull ghcr.io/masarcorp/boardhub-ai-services:develop
+```
+
+**Run the whole stack from the registry** (skips the source build) by layering
+an override that points the app services at the published images. Create
+`docker-compose.ghcr.yml` next to the dev compose:
+
+```yaml
+# docker-compose.ghcr.yml — run app services from GHCR instead of building
+services:
+  api:
+    image: ghcr.io/masarcorp/boardhub-api:develop
+  ui:
+    image: ghcr.io/masarcorp/boardhub-ui:develop
+  ai-services:
+    image: ghcr.io/masarcorp/boardhub-ai-services:develop
+```
+
+Then start with both files and skip building:
+
+```bash
+docker compose -f docker-compose.dev.yml -f docker-compose.ghcr.yml up -d --no-build
+```
+
+The infra services (postgres/redis/minio/opensearch) still come from their own
+public images. Verify with the same probes as §3, and tear down with
+`docker compose -f docker-compose.dev.yml -f docker-compose.ghcr.yml down -v`.
+
+> Run a **single** image directly? The `api` needs a Postgres sidecar (and
+> `-e MANAGEMENT_HEALTH_MAIL_ENABLED=false` to report healthy without a mailer),
+> and the `ui` expects an `api` host to be resolvable (it proxies `/api`). The
+> images are designed to run **together** — prefer the compose command above.
+
 ## Per-OS reminders
 
 - **Windows:** always work from the **WSL2** shell with repos on the Linux
@@ -106,6 +167,8 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 - Code-change → rebuild flow → [`WORKFLOWS.md`](./WORKFLOWS.md)
 - Full plan → [`MAGALES-MVP-PLAN.md`](./MAGALES-MVP-PLAN.md)
 
-> The product/DB/credentials still carry the `magales` name (compose service
-> internals, DB name, seed users). Renaming the broader product is out of scope
-> here — only the `boardhub-infra` repo name is updated in this doc.
+> **Rebrand note:** some *internal* identifiers still carry the old `magales`
+> name (compose container names, the `magales_db` database, seed usernames, and
+> the Java package `tech.platform`). Those are load-bearing (volumes, JDBC URLs,
+> seeded data) and are being renamed in a separate, dedicated pass — changing
+> them here would break existing local volumes and data.
