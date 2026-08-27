@@ -6,9 +6,9 @@
 #
 #   jobs:
 #     publish:
-#       uses: MasarCorp/magales-infra/.github/workflows/docker-publish.yml@main
+#       uses: MasarCorp/boardhub-infra/.github/workflows/docker-publish.yml@main
 #       with:
-#         image-name: magales-api
+#         image-name: boardhub-api
 #       secrets: inherit
 #
 # Tag strategy (handled by docker/metadata-action):
@@ -79,10 +79,10 @@ jobs:
       - name: Checkout caller repo
         uses: actions/checkout@v4
 
-      - name: Checkout magales-infra (helper scripts)
+      - name: Checkout boardhub-infra (helper scripts)
         uses: actions/checkout@v4
         with:
-          repository: MasarCorp/magales-infra
+          repository: MasarCorp/boardhub-infra
           ref: main
           path: .ci-infra
 

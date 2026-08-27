@@ -76,7 +76,7 @@ services:
 
   api:
     build:
-      context: ../Magales
+      context: ../boardhub
       dockerfile: Dockerfile
     container_name: magales-api
     depends_on:
@@ -156,7 +156,7 @@ services:
 
   ai-services:
     build:
-      context: ../ai-services
+      context: ../boardhub-ai-services
       dockerfile: Dockerfile
     container_name: magales-ai-services
     depends_on:
@@ -205,7 +205,7 @@ services:
 
   ui:
     build:
-      context: ../Magales-ui
+      context: ../boardhub-ui
       dockerfile: Dockerfile
     container_name: magales-ui
     depends_on:

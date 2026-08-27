@@ -1,108 +1,174 @@
-# magales-infra
+# boardhub-infra
 
-Operations & infrastructure for the **Magales** platform (working name).
+Infrastructure + local dev orchestration for the platform. This repo owns the
+`docker-compose.dev.yml` that boots the whole stack, the CI workflows, and the
+ops runbooks. **App code lives in sibling repos** — this repo builds them.
 
-This repo owns everything that is *not* application code:
+## Required layout (siblings)
 
-- **Local dev orchestration** — `docker-compose.dev.yml`
-- **AWS infrastructure as code** — `terraform/` (added in week-1, Day 1 per the plan)
-- **Self-hosted enterprise deployment** — `helm/` (added in Day 5)
-- **CI/CD pipelines** — `.github/workflows/` (added in Day 1)
-- **Runbooks & ops docs** — `PHASE-*.md`, `runbooks/`
-
-App code lives in two sibling repos:
-
-| Repo | What it is |
-|---|---|
-| `Magales/` | Spring Boot 3.3 / Java 21 backend |
-| `Magales-ui/` | Angular 17 frontend |
-| `magales-infra/` (this repo) | Orchestration + AWS IaC + Helm + CI/CD |
-
----
-
-## Required directory layout
-
-All three repos must be cloned as **siblings** under the same parent directory:
+All repos must sit next to each other under one parent directory. The compose
+file builds from `../boardhub`, `../boardhub-ui`, and `../boardhub-ai-services`,
+so this is not optional:
 
 ```
-~/Documents/masarcorprepos/   ← (or wherever you keep code)
-├── Magales/
-├── Magales-ui/
-└── magales-infra/             ← you are here
+boardhub/                    ← parent directory
+├── boardhub/                ← Spring Boot backend  (built as `api`)
+├── boardhub-ui/             ← Angular frontend      (built as `ui`)
+├── boardhub-ai-services/    ← Python AI services    (built as `ai-services`)
+└── boardhub-infra/          ← you are here
+    └── docker-compose.dev.yml
 ```
 
-The compose file references `../Magales` and `../Magales-ui` as build contexts, so this layout is not optional.
-
----
-
-## Quick start (local dev)
+Clone them together:
 
 ```bash
-# 1. Clone all three repos as siblings (one-time)
-cd ~/Documents/masarcorprepos
-git clone <git-url-Magales>      Magales
-git clone <git-url-Magales-ui>   Magales-ui
-git clone <git-url-magales-infra> magales-infra
+git clone git@github.com:MasarCorp/boardhub.git
+git clone git@github.com:MasarCorp/boardhub-ui.git
+git clone git@github.com:MasarCorp/boardhub-ai-services.git
+git clone git@github.com:MasarCorp/boardhub-infra.git
+```
 
-# 2. Start the full stack
-cd magales-infra
+## 1. Prerequisites
+
+Install one thing per OS, then run one setup command.
+
+| OS | Install | Then run / note |
+|---|---|---|
+| **macOS** | Docker Desktop | In Docker Desktop → Settings → Resources, give it **≥ 8 GB RAM** (OpenSearch needs headroom). |
+| **Windows** | WSL2 (`wsl --install`) + Docker Desktop with the **WSL2 backend** enabled | Clone all repos **inside the WSL2 Linux filesystem** (e.g. `~/masarcorprepos`, **not** `/mnt/c`), and run every command from the **WSL2 shell**. |
+| **Linux** | Docker Engine + the compose plugin | `sudo sysctl -w vm.max_map_count=262144` (required by OpenSearch), and `sudo usermod -aG docker $USER` then re-login. |
+
+## 2. Start (one command)
+
+```bash
 docker compose -f docker-compose.dev.yml up --build
-
-# 3. Open the UI
-open http://localhost:4200
+# ...or detached:
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
-Login with seeded user `admin` / `P@ssw0rd`.
+First boot takes a few minutes (Maven + Angular build + model pulls). Then open:
 
-For **URLs, default credentials, smoke-test scenarios, troubleshooting**, see [`runbooks/local-stack-and-smoke-tests.md`](./runbooks/local-stack-and-smoke-tests.md).
+- **http://localhost:4200** — log in with **`admin`** / **`P@ssw0rd`**
+  (seeded `acme` tenant admin; see the runbook for the full user list).
 
-For the complete how-to (verification, port reference), see [`PHASE-1-DAY-1.md`](./PHASE-1-DAY-1.md).
-
-For **what to do when code changes** in either app repo (the rebuild loop, and the future registry-based flow), see [`WORKFLOWS.md`](./WORKFLOWS.md).
-
----
-
-## Common commands
+## 3. Verify
 
 ```bash
-# Detached
-docker compose -f docker-compose.dev.yml up -d --build
+# All 7 services should be Up (and healthy where a healthcheck is defined):
+docker compose -f docker-compose.dev.yml ps
 
-# Tail one service
-docker compose -f docker-compose.dev.yml logs -f api
-
-# Stop, keep data
-docker compose -f docker-compose.dev.yml down
-
-# Stop and wipe volumes (full DB reset)
-docker compose -f docker-compose.dev.yml down -v
-
-# Rebuild only the backend after code change
-docker compose -f docker-compose.dev.yml up -d --build api
+# Health probes:
+curl http://localhost:8080/api/actuator/health   # api → {"status":"UP"}
+curl http://localhost:9200/_cluster/health        # opensearch → {"status":"green"|"yellow"}
+curl -I http://localhost:4200                      # ui → HTTP 200
 ```
 
----
+Teardown (stop and wipe volumes for a clean DB/search reset):
 
-## What's running
+```bash
+docker compose -f docker-compose.dev.yml down -v
+```
 
-| Service | Port | Purpose |
+## 4. What's running
+
+| Service | Port(s) | Purpose |
 |---|---|---|
-| postgres (pgvector) | 5432 | Primary DB |
-| redis | 6379 | Cache + Nafath state (wired in Day 2/3) |
-| minio | 9000 (S3 API), 9001 (console) | Object storage (wired in Day 5) |
-| api (Spring Boot) | 8080 | REST API at `/api/*` |
-| ui (Angular + nginx) | 4200 → 80 | SPA |
+| **postgres** (pgvector) | 5432 | Primary DB; `pgvector` for embeddings |
+| **redis** | 6379 | Cache + shared state |
+| **minio** | 9000 (S3 API), 9001 (console) | S3-compatible object storage |
+| **opensearch** | 9200 | Full-text + vector search |
+| **api** (Spring Boot) | 8080 | REST API at `/api/*` |
+| **ai-services** (Python) | 8081 | AI: transcription, insights, RAG |
+| **ui** (Angular + nginx) | 4200 → 80 | SPA |
 
----
+## 5. Optional: `.env` for live AI
 
-## Roadmap (this repo)
+`.env` is **optional** — every variable has a working default, so the stack
+boots without one. You only need it to enable **live AI** calls, by supplying
+the provider keys you want:
 
-| Phase | Adds | Status |
-|---|---|---|
-| Phase 1 / Day 1 | `docker-compose.dev.yml`, `PHASE-1-DAY-1.md` | ✅ done |
-| Phase 1 / Day 2 | Flyway baseline migration | next |
-| Phase 1 / Day 3 | `.github/workflows/` (CI: build → trivy → push to ECR) | next |
-| Phase 1 / Week 1 | `terraform/` (VPC, ECS, RDS, ElastiCache, S3, ECR, ALB, WAF, Route53, CloudFront, IAM, Secrets, CloudWatch) | week 1 |
-| Phase 1 / Day 5 | `helm/` chart for self-hosted enterprise tier | week 1 |
+```bash
+# .env (all optional)
+OPENROUTER_API_KEY=...
+ANTHROPIC_API_KEY=...
+GROQ_API_KEY=...
+# Self-hosted models via Ollama on the host:
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+```
 
-See [`MAGALES-MVP-PLAN.md`](./MAGALES-MVP-PLAN.md) for the full plan and rationale.
+## 6. Run from pre-built GHCR images (no local build)
+
+CI publishes each app image to **GitHub Container Registry** on every push to
+`develop`/`main`:
+
+| Image | Tags |
+|---|---|
+| `ghcr.io/masarcorp/boardhub-api` | `develop`, `main`, `sha-<short>`, `latest` (on `main`) |
+| `ghcr.io/masarcorp/boardhub-ui` | `develop`, `main`, `sha-<short>`, `latest` |
+| `ghcr.io/masarcorp/boardhub-ai-services` | `develop`, `main`, `sha-<short>`, `latest` |
+
+These packages are **private**, so authenticate first with a GitHub token that
+has the **`read:packages`** scope (classic PAT from GitHub → Settings →
+Developer settings, or `gh auth token`):
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <your-github-username> --password-stdin
+```
+
+Pull the images:
+
+```bash
+docker pull ghcr.io/masarcorp/boardhub-api:develop
+docker pull ghcr.io/masarcorp/boardhub-ui:develop
+docker pull ghcr.io/masarcorp/boardhub-ai-services:develop
+```
+
+**Run the whole stack from the registry** (skips the source build) by layering
+an override that points the app services at the published images. Create
+`docker-compose.ghcr.yml` next to the dev compose:
+
+```yaml
+# docker-compose.ghcr.yml — run app services from GHCR instead of building
+services:
+  api:
+    image: ghcr.io/masarcorp/boardhub-api:develop
+  ui:
+    image: ghcr.io/masarcorp/boardhub-ui:develop
+  ai-services:
+    image: ghcr.io/masarcorp/boardhub-ai-services:develop
+```
+
+Then start with both files and skip building:
+
+```bash
+docker compose -f docker-compose.dev.yml -f docker-compose.ghcr.yml up -d --no-build
+```
+
+The infra services (postgres/redis/minio/opensearch) still come from their own
+public images. Verify with the same probes as §3, and tear down with
+`docker compose -f docker-compose.dev.yml -f docker-compose.ghcr.yml down -v`.
+
+> Run a **single** image directly? The `api` needs a Postgres sidecar (and
+> `-e MANAGEMENT_HEALTH_MAIL_ENABLED=false` to report healthy without a mailer),
+> and the `ui` expects an `api` host to be resolvable (it proxies `/api`). The
+> images are designed to run **together** — prefer the compose command above.
+
+## Per-OS reminders
+
+- **Windows:** always work from the **WSL2** shell with repos on the Linux
+  filesystem — it then behaves exactly like Linux. Building on `/mnt/c` is slow
+  and breaks file watching.
+- **Linux:** set `vm.max_map_count=262144` (above) or OpenSearch won't start.
+
+## More
+
+- Local URLs, credentials, smoke tests, troubleshooting →
+  [`runbooks/local-stack-and-smoke-tests.md`](./runbooks/local-stack-and-smoke-tests.md)
+- Code-change → rebuild flow → [`WORKFLOWS.md`](./WORKFLOWS.md)
+- Full plan → [`MAGALES-MVP-PLAN.md`](./MAGALES-MVP-PLAN.md)
+
+> **Rebrand note:** some *internal* identifiers still carry the old `magales`
+> name (compose container names, the `magales_db` database, seed usernames, and
+> the Java package `tech.platform`). Those are load-bearing (volumes, JDBC URLs,
+> seeded data) and are being renamed in a separate, dedicated pass — changing
+> them here would break existing local volumes and data.
