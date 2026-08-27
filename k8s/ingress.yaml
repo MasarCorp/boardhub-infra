@@ -1,0 +1,37 @@
+# Generic Ingress example for exposing the UI (and /api through nginx) externally.
+#
+# This is OPTIONAL and OFF by default. It requires an Ingress controller to be
+# installed in your cluster (e.g. ingress-nginx, or your cloud's managed controller).
+#
+# Portability notes:
+#   - `ingressClassName` must match a controller installed in YOUR cluster.
+#     Common values: "nginx" (ingress-nginx), "alb" (AWS), "gce" (GKE).
+#   - Do NOT hardcode cloud-specific annotations here; add them per environment.
+#   - Replace boardhub.example.com with your real host (or remove `host:` to match all).
+#
+# All traffic goes to the `ui` Service; nginx inside the ui image forwards /api/
+# to the api Service, so a single backend is enough.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: boardhub
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: boardhub
+    app.kubernetes.io/part-of: boardhub
+  # annotations:
+  #   # examples — pick what matches your controller, do not enable blindly:
+  #   nginx.ingress.kubernetes.io/proxy-body-size: "50m"   # ingress-nginx: allow doc/audio uploads
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: boardhub.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ui
+                port:
+                  number: 80

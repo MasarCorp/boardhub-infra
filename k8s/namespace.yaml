@@ -1,0 +1,9 @@
+# Namespace for the whole BoardHub stack.
+# Apply this first — every other manifest targets namespace: boardhub.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+    app.kubernetes.io/name: boardhub

@@ -1,0 +1,86 @@
+# Redis cache + shared state.
+# Compose runs Redis without a volume; here we add a small PVC and enable AOF so
+# state survives a pod restart. Drop the volumeClaimTemplate + --appendonly for a
+# pure ephemeral cache if you prefer to match compose exactly.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: boardhub
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: boardhub
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/part-of: boardhub
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          volumeMounts:
+            - name: redisdata
+              mountPath: /data
+          # Mirrors the compose healthcheck: redis-cli ping
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          # Tunable: tiny cache workload at dev scale.
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+  volumeClaimTemplates:
+    - metadata:
+        name: redisdata
+        labels:
+          app.kubernetes.io/name: redis
+          app.kubernetes.io/part-of: boardhub
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

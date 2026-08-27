@@ -1,0 +1,50 @@
+# Non-secret configuration for the BoardHub stack.
+# Values mirror the env blocks in docker-compose.dev.yml (main branch), with
+# hostnames pointed at in-cluster Service names instead of compose service names
+# (which happen to be identical here: postgres, redis, minio, opensearch, api, ai-services).
+#
+# Secrets (passwords, JWT, HMAC, provider API keys) live in the Secret, NOT here.
+# See secret.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: boardhub-config
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: boardhub-config
+    app.kubernetes.io/part-of: boardhub
+data:
+  # ── Datastore endpoints (in-cluster DNS Service names) ──
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "magales"          # load-bearing: JDBC db name, matches compose POSTGRES_DB
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  S3_ENDPOINT: "http://minio:9000"
+  S3_BUCKET: "magales-docs"
+  OPENSEARCH_URL: "http://opensearch:9200"
+
+  # ── api (Spring Boot) ──
+  SPRING_PROFILES_ACTIVE: "postgres"
+  # Dev/portable: no SMTP server runs in-cluster, so don't gate /actuator/health on the mail indicator.
+  MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+  AI_SERVICES_BASE_URL: "http://ai-services:8081"
+  # Tenancy (matches compose). Adjust host suffixes to your real domains in prod.
+  APP_TENANCY_ALLOW_DEFAULT_TENANT: "true"
+  APP_TENANCY_DEFAULT_TENANT_SLUG: "acme"
+  APP_TENANCY_HOST_SUFFIXES: "magales.app,magales.local,magales.test"
+  APP_TENANCY_SIGNUP_DEV_HINT: "true"
+  APP_TENANCY_VERIFICATION_BASE_URL: "http://localhost:4200/verify-email"
+
+  # ── ai-services (Python / FastAPI) ──
+  MAGALES_INTERNAL_BASE_URL: "http://api:8080/api"
+  DEFAULT_PROVIDER: "openrouter"
+  # Host Ollama is not reachable from a generic cluster; left as the compose default.
+  # Point this at an in-cluster Ollama Service if/when you deploy one.
+  OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+  TRANSCRIBE_PROVIDER: "openrouter"
+  TRANSCRIBE_OPENROUTER_MODEL: "google/gemini-2.5-flash"
+  WHISPER_MODEL: "medium"
+  HF_HOME: "/models/hf"
+  INSIGHTS_TENANTS_CSV: "acme,globex"
+  INSIGHTS_REFRESH_MINUTES: "30"

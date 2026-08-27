@@ -1,0 +1,99 @@
+# PostgreSQL with the pgvector extension preinstalled.
+# StatefulSet + headless Service so the pod has a stable network identity
+# (postgres.boardhub.svc.cluster.local) and a persistent volume for the data dir.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: boardhub
+spec:
+  clusterIP: None            # headless: DNS resolves to the pod IP directly
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: boardhub
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: boardhub
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg15
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: POSTGRES_DB }
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: POSTGRES_USER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: POSTGRES_PASSWORD }
+            # Keep the data in a subdir so a fresh PVC's lost+found never collides with initdb.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          # Mirrors the compose healthcheck: pg_isready -U <user> -d <db>
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          # Tunable starting point: Postgres is light at dev/small scale; raise for prod load.
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+        labels:
+          app.kubernetes.io/name: postgres
+          app.kubernetes.io/part-of: boardhub
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        # No storageClassName → uses the cluster's default StorageClass (portable).
+        # Set one per cloud if you have no default (see k8s/README.md).
+        resources:
+          requests:
+            storage: 5Gi

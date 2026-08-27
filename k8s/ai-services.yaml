@@ -1,0 +1,120 @@
+# ai-services — Python/FastAPI worker (transcription, insights, RAG).
+# Deployment + ClusterIP Service. Talks to opensearch, redis, and the api
+# (MAGALES_INTERNAL_BASE_URL). A PVC caches the embedding/Whisper models under
+# /models (HF_HOME=/models/hf) so they aren't re-downloaded on every restart.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ai-model-cache
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: ai-services
+    app.kubernetes.io/part-of: boardhub
+spec:
+  accessModes: ["ReadWriteOnce"]
+  # No storageClassName → cluster default. Whisper large models can be several GB.
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-services
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: ai-services
+    app.kubernetes.io/part-of: boardhub
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ai-services
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-services
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: ai-services
+    app.kubernetes.io/part-of: boardhub
+spec:
+  replicas: 1
+  # RWO model-cache PVC can attach to one node at a time; recreate rather than
+  # overlap pods on rollout.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-services
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-services
+        app.kubernetes.io/part-of: boardhub
+    spec:
+      imagePullSecrets:
+        - name: ghcr-creds
+      containers:
+        - name: ai-services
+          image: ghcr.io/masarcorp/boardhub-ai-services:develop
+          ports:
+            - name: http
+              containerPort: 8081
+          # Non-secret config from the ConfigMap (MAGALES_INTERNAL_BASE_URL, DEFAULT_PROVIDER,
+          # REDIS_*, OPENSEARCH_URL, OLLAMA_BASE_URL, TRANSCRIBE_*, WHISPER_MODEL, HF_HOME,
+          # INSIGHTS_*). pydantic-settings ignores unrelated keys.
+          envFrom:
+            - configMapRef:
+                name: boardhub-config
+          env:
+            - name: AI_SERVICE_HMAC_SECRET
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: AI_SERVICE_HMAC_SECRET }
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: OPENROUTER_API_KEY }
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: ANTHROPIC_API_KEY }
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: GROQ_API_KEY }
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+          # Health at /v1/health (matches the Dockerfile HEALTHCHECK).
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: 8081
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # Tunable: faster-whisper + embedding models are memory-heavy. Bump the
+          # limit toward 2-3Gi if you run WHISPER_MODEL=large-v3.
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1536Mi"
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: ai-model-cache
