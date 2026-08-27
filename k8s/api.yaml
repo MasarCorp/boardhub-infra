@@ -1,0 +1,112 @@
+# api — Spring Boot backend, serves REST at /api/*.
+# Deployment + ClusterIP Service. The Service MUST be named `api`:
+#   - the ui's nginx proxies /api/ to http://api:8080/api/
+#   - ai-services calls http://api:8080/api (MAGALES_INTERNAL_BASE_URL)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/part-of: boardhub
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/part-of: boardhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api
+        app.kubernetes.io/part-of: boardhub
+    spec:
+      # GHCR images are private — see README for creating this pull secret.
+      imagePullSecrets:
+        - name: ghcr-creds
+      containers:
+        - name: api
+          image: ghcr.io/masarcorp/boardhub-api:develop
+          ports:
+            - name: http
+              containerPort: 8080
+          # Non-secret config (DB_HOST/PORT/NAME, REDIS_*, S3_ENDPOINT/BUCKET,
+          # SPRING_PROFILES_ACTIVE, MANAGEMENT_HEALTH_MAIL_ENABLED, AI_SERVICES_BASE_URL,
+          # APP_TENANCY_*). Unrelated keys in the ConfigMap are harmlessly ignored by Spring.
+          envFrom:
+            - configMapRef:
+                name: boardhub-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: DB_USER }
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: DB_PASSWORD }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: JWT_SECRET }
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: S3_ACCESS_KEY }
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: S3_SECRET_KEY }
+            - name: AI_SERVICE_HMAC_SECRET
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: AI_SERVICE_HMAC_SECRET }
+            - name: SAYNEE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: SAYNEE_WEBHOOK_SECRET }
+            - name: BOOTSTRAP_SUPER_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: BOOTSTRAP_SUPER_ADMIN_EMAIL }
+            - name: BOOTSTRAP_SUPER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: BOOTSTRAP_SUPER_ADMIN_PASSWORD }
+          # Health at /api/actuator/health (context path is /api). Mail indicator is
+          # disabled via MANAGEMENT_HEALTH_MAIL_ENABLED=false so health is UP without a mailer.
+          readinessProbe:
+            httpGet:
+              path: /api/actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /api/actuator/health
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # Tunable: JVM heap is container-aware (image sets -XX:MaxRAMPercentage=75),
+          # so heap tracks the memory LIMIT (~768Mi of 1Gi). Keep request/limit and the
+          # percentage consistent if you resize.
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"

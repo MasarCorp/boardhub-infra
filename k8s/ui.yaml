@@ -1,0 +1,78 @@
+# ui — Angular SPA served by nginx.
+# Deployment + ClusterIP Service on port 80. nginx inside the image proxies
+# /api/ to http://api:8080/api/, so the `api` Service must exist in this namespace.
+#
+# Default exposure is ClusterIP (in-cluster only). To reach it from outside:
+#   - apply k8s/ingress.yaml (generic Ingress), OR
+#   - change `type: ClusterIP` below to `type: LoadBalancer`.
+# See k8s/README.md → "Exposing the UI" (LB annotations differ per cloud).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: ui
+    app.kubernetes.io/part-of: boardhub
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/name: ui
+    app.kubernetes.io/part-of: boardhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ui
+        app.kubernetes.io/part-of: boardhub
+    spec:
+      imagePullSecrets:
+        - name: ghcr-creds
+      containers:
+        - name: ui
+          image: ghcr.io/masarcorp/boardhub-ui:develop
+          ports:
+            - name: http
+              containerPort: 80
+          # Matches the Dockerfile HEALTHCHECK: GET / on nginx.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # Tunable: static nginx is very light.
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
