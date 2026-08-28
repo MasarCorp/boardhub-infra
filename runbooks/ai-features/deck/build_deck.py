@@ -13,6 +13,7 @@ OUT = os.path.dirname(HERE)                      # runbooks/ai-features/
 # same type system as the headings. logo-light.b64 is kept in case a light-on-dark asset arrives.
 HERO = io.open(os.path.join(HERE, "challenge-hero.b64")).read().strip()
 AGENT = io.open(os.path.join(HERE, "agent-hero.b64")).read().strip()
+MEETING = io.open(os.path.join(HERE, "meeting-hero.b64")).read().strip()
 
 # ── the real module list, taken from the running BoardHub sidebar ────────────
 MODULES = [
@@ -99,6 +100,17 @@ ICONS = {
  "flow": '<rect x="2.5" y="4" width="8" height="6" rx="1.6"/><rect x="13.5" y="14" width="8" height="6" rx="1.6"/>'
          '<path d="M6.5 10v4.5a2.5 2.5 0 0 0 2.5 2.5h4.5"/>',
  # a storefront listing
+ # a microphone in the room
+ "mic": '<rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/>'
+        '<path d="M12 18v3.5M8.5 21.5h7"/>',
+ # a closed padlock
+ "lock": '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'
+         '<circle cx="12" cy="15.5" r="1.4"/>',
+ # one person, one scope
+ "person": '<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+ # a document produced from speech
+ "notes": '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>'
+          '<path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
  "market": '<path d="M3 9l1.4-4.2A1.5 1.5 0 0 1 5.8 4h12.4a1.5 1.5 0 0 1 1.4 1.1L21 9"/>'
            '<path d="M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 14v6h14v-6"/>',
 }
@@ -201,6 +213,17 @@ def agent_hero(t):
     </div>'''
 
 
+def meeting_hero(t):
+    """Meeting capture. The artwork carries the scene, so the text stays to four short facts —
+    this slide is spoken over, not read."""
+    pts = "".join(f'<div class="cap-fact reveal">{icon(k)}<div><b>{a}</b><span>{b}</span></div></div>'
+                  for k, a, b in t["s15_facts"])
+    return f'''<div class="two cap-two">
+      <div class="reveal"><img class="cap-img" src="{MEETING}" alt="{t['s15_alt']}"></div>
+      <div class="cap-list">{pts}</div>
+    </div>'''
+
+
 def ui_mock(t, screen):
     """A stylised BoardHub screen. Uses the product's real navigation labels so the
     room recognises the system they are about to see demonstrated."""
@@ -235,7 +258,7 @@ EN = dict(
   wordmark="Masar<em>Corp</em>",
   client="Human Resources Development Fund", client_sub="هدف",
   prepared="Prepared for", by="MasarCorp", foot="MASARCORP",
-  nav=["Opening","The problem","What it costs","The platform","Convene","Decide","Evidence",
+  nav=["Opening","The problem","What it costs","The platform","Convene","Meeting capture","Decide","Evidence",
        "The assistant","AI value","Models & cloud","Live demo","Why us","Roadmap","Close"],
 
   s1_eyebrow="Board & committee governance · 15 minutes",
@@ -355,6 +378,14 @@ EN = dict(
               ("anycloud","Any cloud, self-hosted","AWS, Google Cloud, Oracle, or your own datacentre."),
               ("saas","SaaS","Multi-tenant from the database up, if you would rather we ran it.")],
 
+  s15_eyebrow="Capturing the meeting",
+  s15_h="The meeting writes its own minutes",
+  s15_l="Recording runs in the room, on the browser — not inside your conferencing vendor. That is why it works the same whichever platform the meeting is on.",
+  s15_alt="A board meeting in progress with remote participants on screen, and the assistant listening and drafting notes",
+  s15_facts=[("mic","Any meeting platform","It records the room microphone and the meeting audio in the browser tab, so <span class='ltr'>Teams</span>, <span class='ltr'>Webex</span>, <span class='ltr'>Zoom</span> or <span class='ltr'>Meet</span> all work — with no integration and no bot joining the call."),
+             ("notes","Arabic speech to a structured draft","Transcript, summary, decisions and action items, prepared for review — nothing is filed until someone approves it."),
+             ("person","One conversation, one owner","Each assistant thread belongs to a single user; nobody else in the organisation can open it. Enforced in the code, not by convention."),
+             ("lock","Protected in transit and at rest","<span class='ltr'>TLS</span> on the wire, and stored inside your own database and storage — in your environment, under your keys.")],
   s13_h="Thank you.",
   s13_l="We would be glad to run this on your own governance record and answer with your data, not our slides.",
 
@@ -388,129 +419,109 @@ AR = dict(
   wordmark="مسار<em>كورب</em>",
   client="صندوق تنمية الموارد البشرية", client_sub="هدف",
   prepared="أُعدّ لـ", by="مسار كورب", foot="مسار كورب",
-  nav=["الافتتاح","التحدي","الكلفة","المنصة","الانعقاد","القرار","الإثبات","المساعد",
-       "قيمة الذكاء","النماذج والسحابة","العرض الحي","لماذا نحن","خارطة الطريق","الختام"],
-
+  nav=["الافتتاح", "التحدي", "الكلفة", "المنصة", "الانعقاد", "توثيق الاجتماع", "القرار", "الإثبات", "المساعد", "قيمة الذكاء", "النماذج والسحابة", "العرض الحي", "لماذا نحن", "خارطة الطريق", "الختام"],
   s1_eyebrow="حوكمة المجالس واللجان · ١٥ دقيقة",
   s1_h="حوكمة<br>تفكّر معك.",
-  s1_l="جلسة عمل لا عرضاً تسويقياً. سنستعرض المنصة، ثم نفتحها أمامكم مباشرةً ونجيب من سجلكم أنتم.",
-  s1_meta=["عربي وإنجليزي · دعم أصيل لليمين‑لليسار","قابلة للتشغيل داخل بيئتكم","عرض حيّ في الختام"],
-
+  s1_l="جلسة عمل وليست عرضاً تسويقياً. سنستعرض المنصة، ثم ننتقل إلى تجربة مباشرة على بياناتكم والإجابة عن أسئلتكم.",
+  s1_meta=["دعم كامل للعربية والإنجليزية", "قابلة للتشغيل داخل بيئتكم", "عرض حيّ في الختام"],
   s2_eyebrow="التحدي",
   s2_h="القرار يستغرق ساعة.<br>وتتبّعه يستغرق شهراً.",
-  s2_l="أمانة المجلس لا تنقصها الأنظمة، بل ينقصها خيط واحد يربط ما نوقش بما تقرر بما نُفّذ فعلاً.",
-  overwhelm_items=["بريد","واتساب","اتصال","مرفق نسخة ٧","تذكير","وين الملف؟","توقيع","متابعة"],
+  s2_l="التحدي ليس في تعدد الأنظمة، بل في ربط ما نوقش بما تقرر، ثم بما تم تنفيذه فعلياً.",
   overwhelm_alt="أمين سر مجلس تحاصره المقاطعات: بريد واتصالات ورسائل ونسخ مرفقات وتذكيرات",
-
-  s3_eyebrow="الكلفة",
-  s3_h="ثلاث كلف يشعر بها المجلس فعلاً",
-  s3_cards=[("قرارات تنتهي بهدوء","القرار المتأخر يتوقف عن كونه مسؤولية أحد، وبحلول الاجتماع التالي يكون السياق قد ضاع فيُعاد نقاشه من الصفر."),
-            ("سجل لا يمكن الدفاع عنه","حين يسأل المدقق أو الجهة الرقابية كيف اتُّخذ القرار، تكون الإجابة موزعة بين البريد والأقراص المشتركة."),
-            ("العربية كطبقة ترجمة","أوراق تُحرَّر بالعربية وتُرفع تقاريرها بالإنجليزية. نسختان للحقيقة، وليست إحداهما معتمدة.")],
-
+  s3_eyebrow="أثر التحديات",
+  s3_h="ثلاث تحديات تؤثر مباشرة في أعمال المجلس",
+  s3_cards=[("قرارات تفقد زخمها بعد الاجتماع", "عندما تتأخر المتابعة تضيع المسؤوليات والسياق، وقد يعود النقاش نفسه من جديد في الاجتماع التالي."), ("سجل يصعب تتبعه عند المراجعة", "عند طلب مسار القرار من المدقق أو الجهة الرقابية، قد تكون المعلومات موزعة بين البريد الإلكتروني والملفات المشتركة."), ("تجربة عربية غير متكاملة", "عندما تعمل المستندات بالعربية والتقارير بالإنجليزية بشكل منفصل، تظهر نسخ متعددة للمعلومة نفسها ويصعب تحديد المرجع المعتمد.")],
   s4_eyebrow="المنصة",
-  s4_h="ستة عشر وحدة، أربع وظائف عمل",
-  s4_l="ليست قائمة مزايا. كل مجموعة تجيب عن سؤال حوكمي مختلف، وتغذّي التي تليها — ولهذا لا يُعاد إدخال أي بيانات بينها.",
+  s4_h="دورة حوكمة متكاملة في منصة واحدة",
+  s4_l="تغطي المنصة مراحل العمل من تشكيل المجالس واللجان إلى الاجتماعات والقرارات والمتابعة والتوثيق، مع ترابط البيانات بين جميع المراحل دون إعادة إدخالها.",
   map_alt="وحدات المنصة مجمّعة في أربع وظائف عمل: التكوين والانعقاد والقرار والتنفيذ والإثبات، مع تدفق الاعتماديات بينها وعودة الإثبات ليغذي التكوين",
-  map_loop="الإثبات يغذّي الدورة التالية: التقييمات وسجل النصاب ومعدلات المتابعة",
-
-  s5_eyebrow="الانعقاد",
-  s5_h="أن ينعقد الاجتماع صحيحاً",
-  s5_l="النصاب وجدول الأعمال والأوراق والحضور كيان واحد، لا أربعة جداول منفصلة. وحزمة المجلس تتكوّن من جدول الأعمال نفسه.",
-  s5_points=["حضورياً أو افتراضياً أو مدمجاً، مع التحقق من النصاب قبل افتتاح الجلسة",
-             "بنود الأعمال تحمل نوعها ومدتها ومسؤولها وأوراقها، وغير المنجز منها يُرحَّل تلقائياً",
-             "حزم المجلس تُبنى من جدول الأعمال، فلا تفترق الأوراق عمّا يُناقَش"],
-
+  map_loop="كل دورة تبني على السابقة: التقييمات، النصاب، ومؤشرات المتابعة",
+  s5_eyebrow="إدارة الاجتماع",
+  s5_h="اجتماع متكامل من التحضير إلى الانعقاد",
+  s5_l="النصاب وجدول الأعمال والمرفقات والحضور مترابطة في مكان واحد، وحزمة المجلس تُنشأ مباشرة من جدول الأعمال.",
+  s5_points=["حضورياً أو افتراضياً أو مدمجاً، مع التحقق من النصاب قبل افتتاح الجلسة", "بنود الأعمال تحمل نوعها ومدتها ومسؤولها وأوراقها، وغير المنجز منها يُرحَّل تلقائياً", "حزم المجلس تُنشأ من جدول الأعمال نفسه، لتبقى المرفقات مرتبطة دائماً بالموضوعات المطروحة"],
   s6_eyebrow="القرار والتنفيذ",
-  s6_h="حيث يتحول النقاش إلى مساءلة",
-  s6_l="القرار ليس فقرة في محضر، بل كيان مرقّم له مالك وتاريخ، ويُصعِّد نفسه إذا تأخر.",
-  s6_points=["تصويت رقمي بقواعد نصاب وسجل تدقيق كامل",
-             "القرارات مرقّمة ومصنّفة ومتابَعة حتى الإنجاز",
-             "القرارات المتأخرة تُصعَّد وفق جدول، ويمكن ترحيلها إلى جدول الأعمال التالي"],
-
-  s7_eyebrow="الإثبات",
-  s7_h="السجل الذي يجب أن يصمد",
-  s7_l="كل مخرج محفوظ ومُصدَّر ومُوقَّع عند اللزوم، ويمكن الوصول إليه من القرار الذي يخصّه.",
-  s7_points=["مكتبة مستندات بتصنيفات وإصدارات ومدد احتفاظ",
-             "طلبات توقيع إلكتروني مرتبطة بالمستندات التي تتطلبها",
-             "كل إجابة من المساعد تستشهد بالمحضر أو القرار أو المهمة التي جاءت منها"],
-
+  s6_h="من النقاش إلى قرار قابل للمتابعة",
+  s6_l="كل قرار يُسجل برقم ومسؤول وتاريخ استحقاق، ويظل قابلاً للمتابعة والتصعيد حتى إغلاقه.",
+  s6_points=["تصويت رقمي بقواعد نصاب وسجل تدقيق كامل", "القرارات مرقّمة ومصنّفة ومتابَعة حتى الإنجاز", "القرارات المتأخرة تُصعَّد وفق جدول، ويمكن ترحيلها إلى جدول الأعمال التالي"],
+  s7_eyebrow="التوثيق والامتثال",
+  s7_h="سجل موثّق يمكن الرجوع إليه بثقة",
+  s7_l="كل مخرج محفوظ وقابل للتصدير والتوقيع عند الحاجة، مع ارتباطه مباشرة بالقرار أو الاجتماع المعني.",
+  s7_points=["مكتبة مستندات بتصنيفات وإصدارات ومدد احتفاظ", "طلبات توقيع إلكتروني مرتبطة بالمستندات التي تتطلبها", "كل إجابة من المساعد تستشهد بالمحضر أو القرار أو المهمة التي جاءت منها"],
   s8_eyebrow="المساعد",
-  s8_h="مساعد واحد بأذرع متعددة",
-  s8_l="ليست ثماني مزايا منفصلة، بل مساعد واحد يخطط ثم يستدعي الواجهات المحوكمة نفسها التي يستخدمها موظفوكم — وبصلاحياتهم في كل مرة.",
-  octo_caps=["يقرأ السجل الحيّ","قاعدة المعرفة","المستندات والمسح","يصوغ المحاضر",
-             "ينشئ القرارات والمهام","يولّد المستندات","المؤشرات والمخاطر","يتذكّر السياق"],
+  s8_h="مساعد ذكي واحد يخدم مختلف مهام الحوكمة",
+  s8_l="بدلاً من أدوات منفصلة، يعمل مساعد واحد عبر وظائف المنصة نفسها، مع الالتزام بصلاحيات كل مستخدم ونطاق وصوله.",
   octo_alt="المساعد الذكي مرسوماً بجسد واحد وثماني أذرع، كل ذراع تصل إلى قدرة: السجل الحيّ، وقاعدة المعرفة، والمستندات والمسح الضوئي، وصياغة المحاضر، وإنشاء القرارات والمهام، وتوليد المستندات، والمؤشرات، والذاكرة",
-
   s9_eyebrow="الذكاء الاصطناعي بلغة العمل",
-  s9_h="ما قيمة الذكاء فعلياً",
-  s9_rows=[("استخدام الأدوات","يجيب من النظام الحيّ لا من تصدير الأمس — يستعلم من السجل لحظة سؤالك."),
-           ("قاعدة المعرفة","ارفع سياسة أو تعميماً أو قراراً، فيُفهرَس ويصبح قابلاً للسؤال مع ذكر مصدره."),
-           ("المسح الضوئي بالعربية","الصفحات الممسوحة والمختومة تُقرأ ولا تُتجاهَل، فتصبح المحاضر المصوَّرة نصاً قابلاً للبحث."),
-           ("الاسترجاع والمصادر","كل معلومة تحمل رابطاً مرقّماً إلى السجل الذي جاءت منه."),
-           ("محادثة مستند بعينه","اسأل عن ملف واحد رفعته، فتأتي الإجابة من ذلك الملف وحده."),
-           ("الذاكرة","يحتفظ بخيط الجلسة — حدّد اللجنة أو الشهر مرة واحدة ثم تابع أسئلتك."),
-           ("الاستدلال","الأسئلة المركّبة تُحسم في طلب واحد: عدة استعلامات وحكم مهني."),
-           ("إدراك الصفحة","«هذا الاجتماع» يعني المعروض أمامك، دون معرّفات ودون إعادة شرح."),
-           ("توليد المستندات","يصوغ المذكرة بالعربية، وتعتمدها أنت، فتُحفظ على الاجتماع كملف <span class='ltr'>Word</span> حقيقي."),
-           ("محاضر بالذكاء الاصطناعي","سجّل اجتماعاً بالعربية، واحصل على تفريغ ومسودة محضر منظّمة للمراجعة."),
-           ("المؤشرات والمخاطر","مؤشرات محسوبة ورسوم شهرية تظهر داخل المحادثة، دون عدّ يدوي."),
-           ("التلخيص والترجمة","اختصار أي مرفق أو نقله بين العربية والإنجليزية."),
-           ("اقتراح الخطوة التالية","مقترحات بادئة حسب الصفحة، فيكتشف الموظفون ما يستطيع فعله حقاً."),
-           ("عمل مرئي","ترى أي أدوات استُدعيت، ويمكنك إيقاف إجابة طويلة دون فقدان ما ظهر."),
-           ("الضوابط","لا يختلق رقماً، ولا يكتب شيئاً دون تأكيد صريح."),
-           ("عزل الجهات","كل طلب يحمل صلاحيات المستخدم المسجَّل ونطاق جهته.")],
+  s9_h="كيف يضيف الذكاء الاصطناعي قيمة للعمل اليومي",
+  s9_rows=[("إجابات مباشرة من النظام", "يجيب من البيانات الحالية في المنصة ويستعلم من سجل الحوكمة لحظة طرح السؤال."),
+           ("معرفة مؤسسية قابلة للسؤال", "ارفع سياسة أو تعميماً أو قراراً، فيُفهرَس ويصبح قابلاً للبحث والسؤال مع إظهار المصدر."),
+           ("المسح الضوئي بالعربية", "يقرأ الصفحات الممسوحة والمختومة، ويحوّل المحاضر المصوّرة إلى محتوى قابل للبحث."),
+           ("إجابات موثّقة بالمصدر", "كل معلومة ترتبط مباشرة بالسجل أو المستند الذي استندت إليه."),
+           ("اسأل أي مستند", "اختر ملفاً محدداً واسأل عنه، فتقتصر الإجابة على محتواه فقط."),
+           ("يتذكر سياق العمل", "حدّد اللجنة أو الفترة مرة واحدة، ثم واصل أسئلتك دون تكرار السياق في كل مرة."),
+           ("يفهم الأسئلة المركّبة", "يجمع أكثر من استعلام ومصدر للإجابة عن الأسئلة التي تتطلب عدة خطوات مترابطة."),
+           ("يفهم ما تعمل عليه", "يدرك سياق الصفحة الحالية؛ فعند قول «هذا الاجتماع» يعرف مباشرة أي اجتماع تقصد."),
+           ("توليد المستندات", "يصوغ المذكرة بالعربية، وتعتمدها أنت، فتُحفظ على الاجتماع كملف <span class='ltr'>Word</span> حقيقي."),
+           ("محاضر بالذكاء الاصطناعي", "سجّل اجتماعاً بالعربية، واحصل على تفريغ ومسودة محضر منظّمة للمراجعة."),
+           ("المؤشرات والمخاطر", "مؤشرات محسوبة ورسوم شهرية تظهر داخل المحادثة، دون عدّ يدوي."),
+           ("التلخيص والترجمة", "اختصار أي مرفق أو نقله بين العربية والإنجليزية."),
+           ("اقتراحات ذكية للخطوة التالية", "يعرض إجراءات مقترحة حسب الصفحة والسياق، ليسهّل على المستخدم معرفة ما يمكن إنجازه مباشرة."),
+           ("شفافية في التنفيذ", "ترى الأدوات التي استخدمها المساعد أثناء التنفيذ، ويمكنك إيقاف الإجابة دون فقدان ما تم عرضه."),
+           ("الضوابط", "يعتمد على البيانات المتاحة، ولا ينفّذ إجراءات كتابية دون تأكيد صريح من المستخدم."),
+           ("صلاحيات وعزل بيانات كل جهة", "كل طلب يلتزم بصلاحيات المستخدم ونطاق الجهة التابعة له، دون تجاوز حدود الوصول المسموح بها.")],
   s10_eyebrow="ننتقل إلى النظام",
   s10_h="العرض الحيّ",
-  s10_l="سنفتح المنصة على بيانات حقيقية ونستقبل أسئلتكم عليها مباشرة — بما في ذلك ما يُطرح في هذه القاعة.",
-  s10_items=["اسأله بالعربية وشاهد أي أدوات يستدعي",
-             "ارفع مستنداً ممسوحاً ضوئياً واسأله عنه",
-             "اطلب صياغة مذكرة، اعتمدها، وشاهدها تُحفظ على الاجتماع"],
-
-  s11_eyebrow="التموضع",
-  s11_h="أغلب أنظمة الذكاء تكتب مستندات.<br>نظامنا يقرأ سجلّك.",
-  s11_l="مقارنة مع المنصة العالمية الرائدة، مبنية على ما ينشره كل مزوّد عن نفسه فقط.",
+  s10_l="سنفتح المنصة على بيانات حقيقية ونستقبل أسئلتكم مباشرة، بما في ذلك الأسئلة التي تطرحونها أثناء الجلسة.",
+  s10_items=["اسأله بالعربية وشاهد أي أدوات يستدعي", "ارفع مستنداً ممسوحاً ضوئياً واسأله عنه", "اطلب صياغة مذكرة، اعتمدها، وشاهدها تُحفظ على الاجتماع"],
+  s11_eyebrow="ما الذي يميزنا",
+  s11_h="الذكاء الاصطناعي لا يكتفي بإنشاء المحتوى،<br>بل يعمل على سجل الحوكمة نفسه",
+  s11_l="مقارنة مختصرة مع نهج إحدى المنصات العالمية الرائدة، استناداً إلى القدرات المعلنة من كل مزوّد.",
   s11_them_h="المنصة العالمية النموذجية",
-  s11_them=["الذكاء الاصطناعي يولّد مخرجات: جدول أعمال وكتيّب مجلس ومحاضر ومؤشرات",
-            "حزمة الذكاء الاصطناعي غالباً إضافة مدفوعة فوق الباقة الأساسية",
-            "لا يرد ذكر التعريب في صفحة استعراض المنصة",
+  s11_them=["يركّز الذكاء الاصطناعي على إنشاء المحتوى مثل جداول الأعمال وحزم المجلس والمحاضر والمؤشرات",
+            "قد تُطرح قدرات الذكاء الاصطناعي كباقة إضافية منفصلة عن المنصة الأساسية",
+            "لا يظهر دعم العربية كقدرة أساسية معلنة في صفحة استعراض المنصة",
             "حاصلة على SOC 2 و ISO 27001 و GDPR، دون التزام معلن بموقع استضافة البيانات"],
   s11_us_h="بوردهَب",
-  s11_us=["المساعد يستعلم من السجل الحيّ ويتصرف فيه، وينشئ اجتماعات وقرارات ومهام بعد تأكيدك",
-          "الذكاء الاصطناعي جزء من المنصة لا باقة تُسعَّر على حدة",
-          "العربية أولاً وثنائية حقيقية: دعم أصيل لليمين‑لليسار، وإجابات ومستندات بالعربية",
-          "قابلة للتشغيل داخل بيئتكم، فموقع البيانات قراركم",
+  s11_us=["المساعد لا يكتفي بالإجابة؛ بل يعمل على سجل الحوكمة نفسه وينشئ الاجتماعات والقرارات والمهام بعد تأكيد المستخدم",
+          "الذكاء الاصطناعي جزء مدمج من تجربة المنصة، وليس طبقة منفصلة عن سير العمل",
+          "دعم متكامل للعربية والإنجليزية، مع واجهة ومخرجات ومستندات عربية بالكامل",
+          "يمكن تشغيلها داخل بيئتكم أو على البنية التي تختارونها، لتظل استضافة البيانات تحت سيطرتكم",
           "مبنية وفق ممارسات الحوكمة السعودية ومتطلبات هيئة الحكومة الرقمية"],
-
   s12_eyebrow="ما هو قادم",
   s12_h="خارطة الطريق",
-  s12_l="توجّه معتمد لم يُطلَق بعد — نعرضه منفصلاً بصرياً حتى لا يلتبس شيء منه بما هو متاح اليوم.",
+  s12_l="توجهات مخطط لها ولم تُطلق بعد، ونستعرضها بشكل منفصل وواضح عن الإمكانات المتاحة حالياً.",
   s12_badge="مخطط له",
-  s12_cards=[("corr","أنظمة المعاملات والمراسلات","ربط الوارد والصادر الرسمي بالقرار أو الاجتماع الذي يخصّه، فتُغلق الدائرة بين المعاملة وقرارها."),
-             ("council","مجلس العمل الذكي","طبقة استشارية دائمة فوق السجل، تُظهر المخاطر والانحراف والمتابعات قبل الاجتماع لا بعده."),
-             ("video","التكامل مع <span class='ltr'>Microsoft Teams</span> و<span class='ltr'>Webex</span>","الجدولة والانضمام من سجل الاجتماع، وإعادة التسجيل لصياغة المحضر."),
-             ("flow","التكامل مع <span class='ltr'>ServiceNow</span>","مزامنة ثنائية الاتجاه تجعل مهمة المجلس وتذكرتها التشغيلية مصدراً واحداً للحقيقة."),
-             ("market","متجر <span class='ltr'>AWS Marketplace</span>","إدراج بوردهَب للشراء عبر اتفاقيتكم القائمة مع <span class='ltr'>AWS</span> والإنفاق الملتزم به.")],
-
+  s12_cards=[("corr", "أنظمة المعاملات والمراسلات", "ربط الوارد والصادر الرسمي بالقرار أو الاجتماع الذي يخصّه، فتُغلق الدائرة بين المعاملة وقرارها."),
+             ("council", "مجلس العمل الذكي", "طبقة استشارية دائمة فوق السجل، تُظهر المخاطر والانحراف والمتابعات قبل الاجتماع لا بعده."),
+             ("video", "التكامل مع <span class='ltr'>Microsoft Teams</span> و<span class='ltr'>Webex</span>", "الجدولة والانضمام من سجل الاجتماع، مع الاستفادة من التسجيل في إعداد مسودة المحضر."),
+             ("flow", "التكامل مع <span class='ltr'>ServiceNow</span>", "مزامنة ثنائية الاتجاه تربط مهمة المجلس بالتذكرة التشغيلية لتبقى الحالة والتنفيذ في مرجع موحّد."),
+             ("market", "متجر <span class='ltr'>AWS Marketplace</span>", "إتاحة شراء بوردهَب عبر <span class='ltr'>AWS Marketplace</span> والاستفادة من اتفاقيتكم والتزامات الإنفاق الحالية مع <span class='ltr'>AWS</span>.")],
   s14_eyebrow="النماذج والاستضافة",
-  s14_h="نماذجكم. سحابتكم.<br>وحدود بياناتكم.",
-  s14_l="المنصة محايدة تجاه النماذج بالتصميم: كل مزوّد يمرّ عبر طبقة تجريد واحدة، فيصبح اختيار النموذج قراراً إدارياً لا التزاماً معمارياً.",
+  s14_h="اختيار النموذج والاستضافة<br>وحدود البيانات بأيديكم",
+  s14_l="صُممت المنصة لتدعم أكثر من مزوّد ونموذج، بحيث يمكن تغيير النموذج وفق متطلباتكم دون الارتباط ببنية تقنية واحدة.",
   s14_models_h="النماذج الأساسية",
-  s14_models=[("bedrock","<span class='ltr'>AWS Bedrock</span>","الأساس. محادثة وبث واستدعاء أدوات وتضمينات، داخل حسابكم على <span class='ltr'>AWS</span>."),
-              ("core","<span class='ltr'>AWS Bedrock AgentCore</span>","المساعد مبني على إطار <span class='ltr'>Strands</span> مفتوح المصدر من <span class='ltr'>AWS</span>، وهو نفسه ما تستضيفه <span class='ltr'>AgentCore</span>."),
-              ("watson","<span class='ltr'>IBM watsonx</span>","مدعوم للمحادثة والتضمينات؛ واستدعاء الأدوات يختلف حسب النموذج ويُتحقق منه لكل نموذج."),
-              ("cloudai","سحابة علي بابا (<span class='ltr'>Qwen</span>)","يعمل لدينا فعلاً — الاسترجاع العربي يقوم اليوم على تضمينات <span class='ltr'>Qwen3</span>."),
-              ("route","<span class='ltr'>Anthropic</span> و<span class='ltr'>Groq</span> و<span class='ltr'>OpenRouter</span>","وصول مباشر أو موجَّه حين يُفضَّل نموذج بعينه."),
-              ("offline","<span class='ltr'>Ollama</span> — دون اتصال","نماذج مفتوحة الأوزان على أجهزتكم، دون أي اتصال خارجي إطلاقاً.")],
-  s14_deploy_h="أين تعمل",
-  s14_deploy=[("docker","<span class='ltr'>Docker</span>","كل خدمة تُشحن كحاوية."),
-              ("k8s","<span class='ltr'>Kubernetes</span>","ملفات نشر محايدة تجاه السحابة، مكتوبة وجاهزة في المستودع."),
-              ("anycloud","أي سحابة، استضافة ذاتية","<span class='ltr'>AWS</span> أو <span class='ltr'>Google Cloud</span> أو <span class='ltr'>Oracle</span> أو مركز بياناتكم."),
-              ("saas","<span class='ltr'>SaaS</span>","متعددة الجهات من قاعدة البيانات صعوداً، إن فضّلتم أن نشغّلها نحن.")],
-
+  s14_models=[("bedrock", "<span class='ltr'>AWS Bedrock</span>", "تشغيل قدرات المحادثة والبحث الدلالي واستدعاء الأدوات داخل حسابكم على <span class='ltr'>AWS</span>."),
+              ("core", "<span class='ltr'>AWS Bedrock AgentCore</span>", "المساعد مبني على إطار <span class='ltr'>Strands</span> مفتوح المصدر من <span class='ltr'>AWS</span>، ويمكن تشغيله عبر <span class='ltr'>AgentCore</span>."),
+              ("watson", "<span class='ltr'>IBM watsonx</span>", "يدعم المحادثة والبحث الدلالي، مع التحقق من قدرات استدعاء الأدوات بحسب النموذج المستخدم."),
+              ("cloudai", "سحابة علي بابا (<span class='ltr'>Qwen</span>)", "مستخدم حالياً لدعم البحث والاسترجاع باللغة العربية عبر تضمينات <span class='ltr'>Qwen3</span>."),
+              ("route", "<span class='ltr'>Anthropic</span> و<span class='ltr'>Groq</span> و<span class='ltr'>OpenRouter</span>", "مرونة في اختيار نموذج محدد أو توجيه الطلبات بين أكثر من مزوّد حسب الحاجة."),
+              ("offline", "<span class='ltr'>Ollama</span> — تشغيل محلي", "تشغيل نماذج مفتوحة الأوزان داخل بيئتكم بالكامل، دون الحاجة إلى اتصال خارجي.")],
+  s14_deploy_h="خيارات التشغيل",
+  s14_deploy=[("docker", "<span class='ltr'>Docker</span>", "تشغيل مرن عبر حاويات مستقلة لكل خدمة."),
+              ("k8s", "<span class='ltr'>Kubernetes</span>", "جاهزة للنشر على <span class='ltr'>Kubernetes</span> دون الارتباط بمزوّد سحابي محدد."),
+              ("anycloud", "تشغيل داخل بيئتكم أو على أي سحابة", "<span class='ltr'>AWS</span> أو <span class='ltr'>Google Cloud</span> أو <span class='ltr'>Oracle</span> أو مركز بياناتكم."),
+              ("saas", "<span class='ltr'>SaaS</span>", "تشغيل مُدار بالكامل مع عزل بيانات وإعدادات كل جهة بشكل مستقل.")],
+  s15_eyebrow="توثيق الاجتماع",
+  s15_h="الاجتماع يكتب محضره بنفسه",
+  s15_l="التسجيل يتم داخل القاعة ومن المتصفح، لا عبر منصة الاجتماعات نفسها، ولذلك يعمل بالطريقة ذاتها مهما كانت المنصة المستخدمة.",
+  s15_alt="اجتماع مجلس منعقد مع مشاركين عن بُعد على الشاشة، والمساعد يستمع ويعدّ المحضر",
+  s15_facts=[("mic","يعمل مع أي منصة اجتماعات","يلتقط صوت القاعة وصوت الاجتماع من المتصفح، فتعمل <span class='ltr'>Teams</span> و<span class='ltr'>Webex</span> و<span class='ltr'>Zoom</span> و<span class='ltr'>Meet</span> جميعها دون ربط تقني ودون مشارك آلي في الاجتماع."),
+             ("notes","من الحديث إلى مسودة منظّمة","تفريغ نصي وملخص وقرارات ومهام، تُعرض للمراجعة قبل اعتمادها، فلا يُحفظ شيء دون موافقة."),
+             ("person","لكل محادثة مالك واحد","محادثة المساعد مرتبطة بمستخدم واحد، ولا يمكن لغيره داخل الجهة الاطلاع عليها — قيد مطبّق في النظام لا إجراء تنظيمي."),
+             ("lock","محمية أثناء النقل والتخزين","النقل عبر <span class='ltr'>TLS</span>، والتخزين داخل قاعدة بياناتكم وبيئتكم وتحت مفاتيحكم.")],
   s13_h="شكراً لكم.",
-  s13_l="يسعدنا تشغيل المنصة على سجل الحوكمة الخاص بكم، والإجابة ببياناتكم لا بشرائحنا.",
-
+  s13_l="يسعدنا أن نعرض المنصة على سجل الحوكمة الخاص بكم، لتكون الإجابات مبنية على بياناتكم الفعلية لا على شرائح العرض.",
   mock_brand="بوردهَب",
   mock=dict(
     meet=dict(active="meetings", title="الاجتماعات",
@@ -685,6 +696,16 @@ h3{font-family:var(--f-display);font-weight:600;font-size:%(fs_h3)s;margin:0 0 6
 .fm b,.dep-card b{font-family:var(--f-display);font-weight:600;font-size:%(fs_fm_b)s;color:#EAF3F9}
 .fm span,.dep-card span{font-size:%(fs_fm_s)s;color:#93AEC4;line-height:1.6}
 .fm:first-child{border-color:var(--teal);background:rgba(13,148,136,.14)}
+.cap-two{align-items:center;gap:30px}
+@media(min-width:900px){.cap-two{grid-template-columns:1.25fr .95fr}}
+.cap-img{width:100%%;height:auto;display:block;border-radius:14px;
+  box-shadow:0 22px 54px rgba(0,0,0,.42)}
+.cap-list{display:flex;flex-direction:column;gap:11px}
+.cap-fact{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:13px 16px}
+.cap-fact>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cap-fact b{font-family:var(--f-display);font-weight:600;font-size:16px;color:#EAF3F9}
+.cap-fact span{font-size:14.5px;color:#B8CAD9;line-height:1.7}
 .demo{display:flex;flex-direction:column;gap:12px;margin-top:28px}
 .demo div{display:flex;gap:14px;align-items:center;background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:15px 18px;
@@ -721,6 +742,51 @@ h3{font-family:var(--f-display);font-weight:600;font-size:%(fs_h3)s;margin:0 0 6
 .contact{margin-top:38px;display:flex;gap:30px;flex-wrap:wrap;align-items:center}
 .contact a{color:var(--teal-bright);text-decoration:none;font-family:var(--f-mono);font-size:13.5px;
   border-bottom:1px solid currentColor;padding-bottom:2px}
+/* ===== Presentation readability pass =====
+   Improve projector / large-screen legibility across the entire deck
+   without changing layout, content, images, or slide structure. */
+.eyebrow{font-size:13.5px;font-weight:600;letter-spacing:.14em}
+.stamp{font-size:12px;color:#9FB2C5;opacity:.9}
+.lede{color:#6E8499}
+.slide.dark .lede,.slide.navy .lede{color:#B4C7D8}
+.card p{font-size:16.5px;color:#586F86}
+.slide.dark .card p,.slide.navy .card p{color:#AFC2D3}
+.pts li{font-size:17px;color:#5C7288}
+.slide.dark .pts li,.slide.navy .pts li{color:#B5C8D8}
+.tok-t{font-size:13.5px}
+.cl-t{font-size:15.5px}
+.mod-t{font-size:15.5px}
+.loop-t{font-size:15px;fill:#C0D0DE}
+.cap-t{font-size:14px}
+.tr-k{font-size:16.5px}
+.tr-v{font-size:16px;color:#D0DEEA;line-height:1.7}
+.cmp li{font-size:16.5px;color:#B8CAD9}
+.rm-badge{font-size:11px;font-weight:600;color:var(--teal-bright)}
+.mk-brand{font-size:15px}
+.mk-side li{font-size:13px}
+.mk-title{font-size:16.5px}
+.mk-kpi span{font-size:12px;color:#AABCCD}
+.mk-c1{font-size:12.5px}
+.mk-c2{font-size:13px;color:#CCD9E5}
+.mk-pill{font-size:11.5px}
+.sub{font-size:14px;font-weight:600;letter-spacing:.12em}
+.fm b,.dep-card b{font-size:17px}
+.fm span,.dep-card span{font-size:16px;color:#B8CAD9;line-height:1.7}
+.demo div{font-size:17.5px;color:#E0EAF2}
+.demo b{font-size:13.5px}
+.pager{font-size:12px;color:#9CB0C3}
+.foot{font-size:11.5px;color:#9CB0C3;opacity:.9}
+.prepared{font-size:15px;color:#D0DDE8;font-weight:700}
+.client-name{font-size:21px}
+.client-sub{font-size:17px;color:#D5E2EC}
+.title-meta{font-size:15px;color:#B8CBDC;gap:34px;line-height:1.7}
+.slide.dark .title-meta,.slide.navy .title-meta{color:#BCD0E0}
+@media(max-width:680px){
+  .title-meta{font-size:13.5px;gap:18px}
+  .eyebrow{font-size:12.5px}
+  .stamp{font-size:11px}
+}
+
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   .reveal{opacity:1;transform:none;transition:none}
@@ -815,9 +881,9 @@ def build(t):
       <div class="wide reveal">{svg_system_map(t)}</div>''',"04:30")
 
     # 5,6,7 ─ business functions with a screen each
-    for idx,(key,mk,stamp) in enumerate([("s5","meet","06:00"),("s6","decide","07:30"),("s7","record","09:00")]):
+    def function_slide(i, key, mk, stamp, cls):
         pts = ''.join(f'<li>{p}</li>' for p in t[f'{key}_points'])
-        slide(4+idx,"navy" if idx%2 else "",f'''
+        slide(i,cls,f'''
       <p class="eyebrow reveal">{t[f'{key}_eyebrow']}</p>
       <h2 class="reveal">{t[f'{key}_h']}</h2>
       <div class="two">
@@ -825,8 +891,20 @@ def build(t):
         <div class="reveal">{ui_mock(t, t['mock'][mk])}</div>
       </div>''',stamp)
 
+    function_slide(4, "s5", "meet", "06:00", "")
+
+    # capture sits with the meeting lifecycle: convene, then record what happened
+    slide(5,"navy",f'''
+      <p class="eyebrow reveal">{t['s15_eyebrow']}</p>
+      <h2 class="reveal">{t['s15_h']}</h2>
+      <p class="lede reveal">{t['s15_l']}</p>
+      {meeting_hero(t)}''',"07:00")
+
+    function_slide(6, "s6", "decide", "08:00", "")
+    function_slide(7, "s7", "record", "09:15", "navy")
+
     # 8 ─ the agent
-    slide(7,"dark",f'''
+    slide(8,"dark",f'''
       <p class="eyebrow reveal">{t['s8_eyebrow']}</p>
       <h2 class="reveal">{t['s8_h']}</h2>
       <p class="lede reveal">{t['s8_l']}</p>
@@ -835,7 +913,7 @@ def build(t):
     # 9 ─ AI value
     rows = ''.join(f'<div class="tr-row reveal"><span class="tr-k">{k}</span>'
                    f'<span class="tr-v">{v}</span></div>' for k,v in t['s9_rows'])
-    slide(8,"navy",f'''
+    slide(9,"navy",f'''
       <p class="eyebrow reveal">{t['s9_eyebrow']}</p>
       <h2 class="reveal">{t['s9_h']}</h2>
       <div class="tr">{rows}</div>''',"11:30")
@@ -847,7 +925,7 @@ def build(t):
     deploy = ''.join(
         f'<div class="fm reveal">{icon(k)}<div><b>{a}</b><span>{b}</span></div></div>'
         for k,a,b in t['s14_deploy'])
-    slide(9,"dark",f'''
+    slide(10,"dark",f'''
       <p class="eyebrow reveal">{t['s14_eyebrow']}</p>
       <h2 class="reveal">{t['s14_h']}</h2>
       <p class="lede reveal">{t['s14_l']}</p>
@@ -859,7 +937,7 @@ def build(t):
     # 11 ─ demo
     items = ''.join(f'<div class="reveal"><b>{i+1:02d}</b><span>{x}</span></div>'
                     for i,x in enumerate(t['s10_items']))
-    slide(10,"dark",f'''
+    slide(11,"dark",f'''
       <p class="eyebrow reveal">{t['s10_eyebrow']}</p>
       <h1 class="reveal">{t['s10_h']}</h1>
       <p class="lede reveal">{t['s10_l']}</p>
@@ -868,7 +946,7 @@ def build(t):
     # 12 ─ differentiation
     them = ''.join(f'<li>{x}</li>' for x in t['s11_them'])
     us   = ''.join(f'<li>{x}</li>' for x in t['s11_us'])
-    slide(11,"dark",f'''
+    slide(12,"dark",f'''
       <p class="eyebrow reveal">{t['s11_eyebrow']}</p>
       <h2 class="reveal">{t['s11_h']}</h2>
       <p class="lede reveal">{t['s11_l']}</p>
@@ -881,14 +959,14 @@ def build(t):
     rm = ''.join(f'<div class="rm-card reveal">'
                  f'<div class="rm-top">{icon(k)}<span class="rm-badge">{t["s12_badge"]}</span></div>'
                  f'<h3>{a}</h3><p>{b}</p></div>' for k,a,b in t['s12_cards'])
-    slide(12,"",f'''
+    slide(13,"",f'''
       <p class="eyebrow reveal">{t['s12_eyebrow']}</p>
       <h2 class="reveal">{t['s12_h']}</h2>
       <p class="lede reveal">{t['s12_l']}</p>
       <div class="rm">{rm}</div>''',"14:15")
 
     # 14 ─ close
-    slide(13,"dark",f'''
+    slide(14,"dark",f'''
       <p class="eyebrow">{t['by']}</p>
       <h1>{t['s13_h']}</h1><p class="lede">{t['s13_l']}</p>
       <div class="contact">{logo}
@@ -922,7 +1000,7 @@ def build(t):
             f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?{t["fonts"]}&display=swap">\n'
             f'<style>{css}</style>\n'
             f'<div class="rail" id="rail" aria-label="Slides"></div>\n'
-            f'<div class="pager"><span id="pgnow">01</span> / <span id="pgall">14</span></div>\n'
+            f'<div class="pager"><span id="pgnow">01</span> / <span id="pgall">15</span></div>\n'
             f'<div class="foot">{t["foot"]}</div>\n'
             + "\n".join(S) + f'\n<script>{JS}</script>\n')
 
