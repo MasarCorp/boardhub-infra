@@ -541,14 +541,14 @@
   <!-- ══ F ══════════════════════════════════════ -->
   <section>
     <div class="sec-head"><span class="sec-tag">F</span><h2>Accuracy guardrails</h2></div>
-    <p class="sec-note">The prompt now forbids inventing a number, date, owner or status. In governance, a confident wrong answer is worse than no answer — these are the ones to run before any demo.</p>
+    <p class="sec-note">A confident wrong answer is worse than no answer — but a correct refusal that sounds apologetic still costs you the room. These check both: the agent must never invent, and never describe the product by what it lacks.</p>
 
     <article class="test" data-id="F1">
       <div class="test-top"><span class="tid">F1</span><span class="tname">Entity that doesn't exist — must not invent</span><input class="chk" type="checkbox" aria-label="F1 passed"></div>
       <div class="ask"><div class="ask-lines"><span class="turn">كم عدد الشكاوى المسجلة هذا العام؟</span></div><button class="copy" type="button">Copy</button></div>
       <div class="meta">
-        <div><p class="lbl pass">Expect</p><p>It states plainly that complaints aren't tracked in the system, and offers what it does have.</p></div>
-        <div><p class="lbl fail">Fails if</p><p>It produces any number at all.</p></div>
+        <div><p class="lbl pass">Expect</p><p>One short clause that complaints aren't among these records, then an offer to look in tasks/decisions/agenda, then one question. Shape: <span class="ar-inline">الشكاوى لا تُدار ضمن سجلات الحوكمة هنا…</span></p></div>
+        <div><p class="lbl fail">Fails if</p><p>It invents a number; says <span class="ar-inline">لا توجد شكاوى</span> (implying the feature exists and is empty); mentions its own tools (<span class="ar-inline">لا تتوفر لدي أداة</span>); or recites platform scope (<span class="ar-inline">المنصة تركز على…</span> / <span class="ar-inline">هذا النظام مخصص لـ…</span>).</p></div>
       </div>
     </article>
 
@@ -556,8 +556,32 @@
       <div class="test-top"><span class="tid">F2</span><span class="tname">A detail the records don't hold</span><input class="chk" type="checkbox" aria-label="F2 passed"></div>
       <div class="ask"><div class="ask-lines"><span class="turn">ما ميزانية لجنة المراجعة لهذا العام بالريال؟</span></div><button class="copy" type="button">Copy</button></div>
       <div class="meta">
-        <div><p class="lbl pass">Expect</p><p>Says the figure isn't in the records. May point to related decisions — clearly marked as related, not as the answer.</p></div>
-        <div><p class="lbl fail">Fails if</p><p>It invents a riyal amount, or presents a decision title as if it were the budget.</p></div>
+        <div><p class="lbl pass">Expect</p><p>It searches first, then declines without inventing a figure, and offers to look for a decision or minutes that mention a budget.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It invents a riyal amount, presents a decision title as if it were the budget, or opens with a scope disclaimer instead of the offer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="F4">
+      <div class="test-top"><span class="tid">F4</span><span class="tname">Empty ≠ non-existent — the distinction must hold</span><input class="chk" type="checkbox" aria-label="F4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">كم اجتماعاً لدينا في يناير 2027؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Meetings <b>are</b> tracked, this period is simply empty — so it reports none scheduled for that month and offers to create one.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It answers like F1 (<span class="ar-inline">لا تُدار هنا</span>) — that would tell the user meetings aren't a feature.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="F5">
+      <div class="test-top"><span class="tid">F5</span><span class="tname">Decline tone holds across different missing entities</span><input class="chk" type="checkbox" aria-label="F5 passed"></div>
+      <div class="ask">
+        <div class="ask-lines">
+          <span class="turn">اعرض لي طلبات الإجازات للموظفين<i>1</i></span>
+          <span class="turn">ما إجمالي رواتب الموظفين هذا الشهر؟<i>2</i></span>
+        </div>
+        <button class="copy" type="button">Copy</button>
+      </div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Both follow the F1 shape. Neither mentions tools, capabilities, or what the platform "focuses on".</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Either one lists the platform's covered areas — that reads as a limitation to a prospect.</p></div>
       </div>
     </article>
 
