@@ -8,7 +8,9 @@ import io, json, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.dirname(HERE)                      # runbooks/ai-features/
-LOGO = io.open(os.path.join(HERE, "logo-light.b64")).read().strip()
+# The supplied artwork is dark navy ink. Reversing it for the dark slides left halo artefacts
+# around the letterforms, so the brand is set as type instead — it scales cleanly and sits in the
+# same type system as the headings. logo-light.b64 is kept in case a light-on-dark asset arrives.
 HERO = io.open(os.path.join(HERE, "challenge-hero.b64")).read().strip()
 AGENT = io.open(os.path.join(HERE, "agent-hero.b64")).read().strip()
 
@@ -230,6 +232,7 @@ EN = dict(
   fonts="family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;600&family=IBM+Plex+Mono:wght@400;500",
   f_display='"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif',
   f_body='"IBM Plex Sans",system-ui,-apple-system,sans-serif',
+  wordmark="Masar<em>Corp</em>",
   client="Human Resources Development Fund", client_sub="هدف",
   prepared="Prepared for", by="MasarCorp", foot="MASARCORP",
   nav=["Opening","The problem","What it costs","The platform","Convene","Decide","Evidence",
@@ -382,6 +385,7 @@ AR = dict(
   fonts="family=Cairo:wght@400;500;600;700;900&family=IBM+Plex+Mono:wght@400;500",
   f_display='"Cairo","Noto Kufi Arabic",system-ui,sans-serif',
   f_body='"Cairo","Noto Kufi Arabic",system-ui,sans-serif',
+  wordmark="مسار<em>كورب</em>",
   client="صندوق تنمية الموارد البشرية", client_sub="هدف",
   prepared="أُعدّ لـ", by="مسار كورب", foot="مسار كورب",
   nav=["الافتتاح","التحدي","الكلفة","المنصة","الانعقاد","القرار","الإثبات","المساعد",
@@ -701,8 +705,12 @@ h3{font-family:var(--f-display);font-weight:600;font-size:%(fs_h3)s;margin:0 0 6
 .foot{position:fixed;inset-inline-end:22px;bottom:18px;z-index:40;font-family:var(--f-mono);
   font-size:10px;color:var(--muted);letter-spacing:.08em;opacity:.7}
 .brandbar{display:flex;align-items:center;gap:18px;margin-bottom:40px;flex-wrap:wrap}
-.logo{display:block;width:auto;height:44px}
-.contact .logo{height:32px}
+.wordmark{font-family:var(--f-display);font-weight:800;font-size:27px;line-height:1;
+  color:#F2F8FC;white-space:nowrap;letter-spacing:%(wm_ls)s}
+.wordmark em{font-style:normal;color:var(--teal-bright)}
+.brandbar .wordmark::after{content:"";display:block;height:2px;margin-top:8px;
+  background:linear-gradient(90deg,var(--teal-bright),transparent)}
+.contact .wordmark{font-size:22px}
 .bsep{width:1px;height:30px;background:rgba(255,255,255,.2)}
 .prepared{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
   color:#6E8BA3;display:block;margin-bottom:4px}
@@ -774,7 +782,7 @@ def build(t):
                  f'<div class="glow"></div><span class="stamp">{stamp}</span>'
                  f'<div class="inner">{body}</div></section>')
 
-    logo = f'<img class="logo" src="{LOGO}" alt="{t["by"]}">'
+    logo = f'<span class="wordmark">{t["wordmark"]}</span>'
 
     # 1 ─ title
     slide(0,"dark",f'''
@@ -904,7 +912,8 @@ def build(t):
                      fs_h3="19px" if ar else "17px",
                      fs_demo="17px" if ar else "15px",
                      fs_mod="14px" if ar else "12.5px",
-                     fs_sub="12.5px" if ar else "11px")
+                     fs_sub="12.5px" if ar else "11px",
+                     wm_ls="0" if ar else "-.035em")
     return ('<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f'<title>{t["title"]}</title>\n'
