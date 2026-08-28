@@ -189,6 +189,28 @@ services:
       # Arabic accuracy is poor on "small"; "medium" is the CPU sweet spot. For the best
       # local Arabic transcription set WHISPER_MODEL=large-v3 (heavier download + slower on CPU).
       WHISPER_MODEL: "${WHISPER_MODEL:-medium}"
+
+      # ── Embeddings (ADR-0003) ──────────────────────────────────────────────
+      # Qwen3-Embedding-8B: Apache-2.0, 100+ languages, MTEB-multilingual 70.6 and genuinely
+      # strong on Arabic. Native width 4096; Matryoshka lets us ask for 1024, which keeps the
+      # quality tier and shrinks the HNSW index 4x.
+      # CHANGING EITHER VALUE REQUIRES A REINDEX: POST /v1/rag/reindex (the OpenSearch mapping
+      # pins the vector dimension, so it cannot be hot-swapped).
+      EMBEDDING_MODEL: "${EMBEDDING_MODEL:-openrouter/qwen/qwen3-embedding-8b}"
+      EMBEDDING_DIM: "${EMBEDDING_DIM:-1024}"
+
+      # ── OCR for scanned documents ──────────────────────────────────────────
+      # "vision" sends rendered pages to an OpenRouter image-input model (no system packages,
+      # strong on Arabic script). "off" disables OCR and scans are rejected with a clear reason.
+      OCR_PROVIDER: "${OCR_PROVIDER:-vision}"
+      OCR_VISION_MODEL: "${OCR_VISION_MODEL:-google/gemini-2.5-flash}"
+      OCR_MAX_PAGES: "${OCR_MAX_PAGES:-20}"
+      OCR_DPI: "${OCR_DPI:-150}"
+      OCR_LANGUAGES: "${OCR_LANGUAGES:-ar,en}"
+
+      # ── Upload guards (enforced server-side) ───────────────────────────────
+      UPLOAD_MAX_MB: "${UPLOAD_MAX_MB:-25}"
+      UPLOAD_ALLOWED_EXTENSIONS: "${UPLOAD_ALLOWED_EXTENSIONS:-pdf,docx,txt,md,csv,json,html,png,jpg,jpeg,webp,tiff}"
       HF_HOME: "/models/hf"
       # Scheduled insights (Phase 5): tenants to refresh + interval.
       INSIGHTS_TENANTS_CSV: "${INSIGHTS_TENANTS_CSV:-acme,globex}"

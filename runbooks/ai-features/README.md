@@ -24,6 +24,9 @@ All tenant-scoped calls use the header `X-Tenant-Slug: acme` (dev tenant).
 1. [Storage + document vectorization](01-storage-and-documents.md) — upload/download document files (MinIO) and index their content into RAG.
 2. [Audio → minutes (Whisper)](02-audio-minutes.md) — transcribe a recording and draft/save minutes.
 3. [Insights](03-insights.md) — structured governance analytics endpoint + scheduled persistence.
-4. [AI Assist acceptance suite](07-ai-assist-test-plan.html) — **the source of truth for AI Assist.** 47 checks: the agent's business logic in Arabic, the SSE/AG-UI streaming protocol, the panel's UI and navigation, and cross-service integration. Open the file in a browser; it tracks your progress locally.
+4. [AI Assist acceptance suite](07-ai-assist-test-plan.html) — **the source of truth for AI Assist.** 55 checks: the agent's business logic in Arabic, the SSE/AG-UI streaming protocol, the panel's UI and navigation, and cross-service integration. Open the file in a browser; it tracks your progress locally.
+5. [Client deck — English](08-boardhub-deck-en.html) and [Arabic](09-boardhub-deck-ar.html) — the 15-minute
+   customer presentation ending in a live demo. **Generated**: edit [`deck/build_deck.py`](deck/), never
+   the HTML, or the two languages drift apart.
 
 Each guide lists the command, the expected result, and how to confirm.

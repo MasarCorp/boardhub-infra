@@ -317,6 +317,8 @@
       <div><dt>المستندات</dt><dd>4</dd></div>
       <div><dt>اجتماعات أغسطس</dt><dd>1</dd></div>
       <div><dt>اجتماعات سبتمبر</dt><dd>3</dd></div>
+      <div><dt>Embedding</dt><dd>1024<small>Qwen3</small></dd></div>
+      <div><dt>حد الرفع</dt><dd>25<small>MB</small></dd></div>
     </dl>
   </section>
 
@@ -464,13 +466,13 @@
     </article>
   </section>
 
-  <!-- ══ D ══════════════════════════════════════ -->
+  <!-- ══ M ══════════════════════════════════════ -->
   <section>
-    <div class="sec-head"><span class="sec-tag">D</span><h2>Memory &amp; recall</h2></div>
+    <div class="sec-head"><span class="sec-tag">M</span><h2>Memory &amp; recall</h2></div>
     <p class="sec-note">The conversation window went from 8 turns to 24. Send these <b>in order, in one chat</b> — the point is that the early fact survives the filler in between.</p>
 
-    <article class="test" data-id="D1">
-      <div class="test-top"><span class="tid">D1</span><span class="tname">Recall across a long chat — send all 6 in sequence</span><input class="chk" type="checkbox" aria-label="D1 passed"></div>
+    <article class="test" data-id="M1">
+      <div class="test-top"><span class="tid">M1</span><span class="tname">Recall across a long chat — send all 6 in sequence</span><input class="chk" type="checkbox" aria-label="M1 passed"></div>
       <div class="ask">
         <div class="ask-lines">
           <span class="turn">تركيزي هذا الربع هو تجاوز ميزانية لجنة المراجعة.<i>1</i></span>
@@ -488,8 +490,8 @@
       </div>
     </article>
 
-    <article class="test" data-id="D2">
-      <div class="test-top"><span class="tid">D2</span><span class="tname">Entity carry-forward — send in sequence</span><input class="chk" type="checkbox" aria-label="D2 passed"></div>
+    <article class="test" data-id="M2">
+      <div class="test-top"><span class="tid">M2</span><span class="tname">Entity carry-forward — send in sequence</span><input class="chk" type="checkbox" aria-label="M2 passed"></div>
       <div class="ask">
         <div class="ask-lines">
           <span class="turn">كم اجتماعاً في سبتمبر؟<i>1</i></span>
@@ -516,6 +518,15 @@
       <div class="meta">
         <div><p class="lbl pass">Expect</p><p>Meetings only. Chip reads <span class="ar-inline">حول هذه الصفحة</span>.</p></div>
         <div><p class="lbl fail">Fails if</p><p>It summarises tasks, decisions and the whole system.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="E4">
+      <div class="test-top"><span class="tid">E4</span><span class="tname">Every page is recognised — not just the common ones</span><input class="chk" type="checkbox" aria-label="E4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">لخّص هذه الصفحة</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Run it on <b>لوحة التحكم</b>, <b>تقييم المجالس</b>, <b>حزم المجلس</b> and <b>المعاملات</b>. Each names the page and summarises only it; the chip reads <span class="ar-inline">حول هذه الصفحة</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The chip says <span class="ar-inline">عبر سجل الحوكمة</span>, or the reply is <span class="ar-inline">لا أرى معلومات عن الصفحة الحالية</span> — that route is missing from the page catalogue on one side.</p></div>
       </div>
     </article>
 
@@ -690,6 +701,79 @@
       <div class="meta">
         <div><p class="lbl pass">Expect</p><p>Model activity ceases within a second or two of Stop — the request is not left running to completion.</p></div>
         <div><p class="lbl fail">Fails if</p><p>Tool calls keep appearing in the log after you stopped (tokens still burning).</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ U ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">U</span><h2>Documents &amp; OCR</h2></div>
+    <p class="sec-note">Upload from the <b>+</b> menu or by dragging a file onto the panel. Scanned pages go through a vision model, so Arabic scans are read rather than silently skipped.</p>
+
+    <article class="test" data-id="U1">
+      <div class="test-top"><span class="tid">U1</span><span class="tname">Drag-and-drop onto the panel</span><input class="chk" type="checkbox" aria-label="U1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Dragging a PDF over the open panel shows a dashed drop zone; releasing indexes it and the assistant confirms with a section count.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The browser navigates away and opens the file itself.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="U2">
+      <div class="test-top"><span class="tid">U2</span><span class="tname">Word document reads as text, not binary</span><input class="chk" type="checkbox" aria-label="U2 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ما هي المستندات التي رفعتها إلى قاعدة المعرفة؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Upload a <code>.docx</code>, then ask. It is listed, and asking about its contents returns real Arabic sentences — including table rows.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Answers contain <code>PK</code> or mojibake — that is the old binary-decode bug returning.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="U3">
+      <div class="test-top"><span class="tid">U3</span><span class="tname">Scanned Arabic page is read by OCR</span><input class="chk" type="checkbox" aria-label="U3 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ماذا يوجد في الصورة الممسوحة التي رفعتها؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Upload a scanned page or photo with Arabic text. It indexes, and the numbers and names in the scan come back <b>exactly</b>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>"Couldn't index" — OCR is off (<code>OCR_PROVIDER</code>) or the model is unreachable.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="U4">
+      <div class="test-top"><span class="tid">U4</span><span class="tname">Answers come from THIS document only</span><input class="chk" type="checkbox" aria-label="U4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">من المستند الذي رفعته: ما القيمة أو المبلغ المذكور فيه؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Uses <code>ask_document</code>, and the figure matches the file. Retrieval is pinned to that document, not the whole tenant.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It answers from an unrelated minute or decision.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="U5">
+      <div class="test-top"><span class="tid">U5</span><span class="tname">Unsupported and oversized files are refused clearly</span><input class="chk" type="checkbox" aria-label="U5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>An <code>.exe</code> is refused naming the allowed types. A file over 25 MB returns a size message — not a generic failure.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Either shows "unexpected error", or an unsupported file indexes anyway.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="U6">
+      <div class="test-top"><span class="tid">U6</span><span class="tname">The full flow: read → count → draft → attach</span><input class="chk" type="checkbox" aria-label="U6 passed"></div>
+      <div class="ask">
+        <div class="ask-lines">
+          <span class="turn">اقرأ المستند الذي رفعته، واذكر كم اجتماعاً في سبتمبر، ثم اكتب مسودة مذكرة عرض على المجلس تجمع بينهما.<i>1</i></span>
+          <span class="turn">اعتمد المسودة، احفظها كمستند Word واربطها باجتماع BOD-2026-013.<i>2</i></span>
+        </div>
+        <button class="copy" type="button">Copy</button>
+      </div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Turn 1 shows the draft and <b>saves nothing</b>. Turn 2 saves it and links it — then open <b>Library</b>, find the file and download it. It must be a real Word file, right-to-left.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It saves before you approve, or the Library row exists but the download fails.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="U7">
+      <div class="test-top"><span class="tid">U7</span><span class="tname">Arabic semantic search, not keyword matching</span><input class="chk" type="checkbox" aria-label="U7 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ما الذي تقرر بخصوص التوسع في أسواق جديدة؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Finds the UAE-market feasibility decision even though the question shares no wording with it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing is found — the index may need a reindex after an embedding change.</p></div>
       </div>
     </article>
   </section>
