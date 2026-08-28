@@ -1,0 +1,221 @@
+# ────────────────────────────────────────────────────────────
+# Magales — local developer stack (Phase 1 / Day 1)
+#
+# This file lives in the magales-infra repo. It expects sibling
+# checkouts of Magales/ and Magales-ui/ at the same parent dir:
+#
+#   masarcorprepos/
+#   ├── Magales/         (Spring Boot backend)
+#   ├── Magales-ui/      (Angular frontend)
+#   └── magales-infra/   ← this file lives here
+#       └── docker-compose.dev.yml
+#
+# Run from inside this directory:
+#   docker compose -f docker-compose.dev.yml up --build
+#   docker compose -f docker-compose.dev.yml down
+#
+# Services:
+#   - postgres (5432)        primary DB; pgvector preinstalled
+#   - redis    (6379)        cache + Nafath state (Day 2+)
+#   - minio    (9000/9001)   S3-compatible object store (Day 5+)
+#   - api      (8080)        Spring Boot backend
+#   - ui       (4200 → 80)   Angular UI served by nginx
+# ────────────────────────────────────────────────────────────
+
+name: magales-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: magales-postgres
+    environment:
+      POSTGRES_DB: magales
+      POSTGRES_USER: magales
+      POSTGRES_PASSWORD: magales-dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U magales -d magales"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: magales-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: magales-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: magales
+      MINIO_ROOT_PASSWORD: magales-dev-secret
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../boardhub
+      dockerfile: Dockerfile
+    container_name: magales-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: magales
+      DB_USER: magales
+      DB_PASSWORD: magales-dev
+      JWT_SECRET: dev-jwt-secret-change-me-32-chars-or-more-please-rotate
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: magales
+      S3_SECRET_KEY: magales-dev-secret
+      S3_BUCKET: magales-docs
+      # Dev: no SMTP server runs locally, so don't gate health on the mail indicator.
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      # ── Tenancy (Day 2) ──
+      # In dev only, when no sub-domain matches and no X-Tenant-Slug header is sent,
+      # fall back to the "acme" tenant. NEVER true in prod.
+      APP_TENANCY_ALLOW_DEFAULT_TENANT: "true"
+      APP_TENANCY_DEFAULT_TENANT_SLUG: "acme"
+      APP_TENANCY_HOST_SUFFIXES: "magales.app,magales.local,magales.test"
+      APP_TENANCY_SIGNUP_DEV_HINT: "true"
+      APP_TENANCY_VERIFICATION_BASE_URL: "http://localhost:4200/verify-email"
+      # ── Bootstrap SUPER_ADMIN (Day 2 close-out) ──
+      # If the tenants table is empty AND both of these are non-empty, the API
+      # creates an internal "_platform" tenant + a SUPER_ADMIN user on first
+      # boot. In dev they are left blank because data-postgres.sql already
+      # seeds acme + globex, so the runner is a no-op. Set them when forking
+      # this file for a fresh staging / prod / on-prem deploy.
+      BOOTSTRAP_SUPER_ADMIN_EMAIL: "${BOOTSTRAP_SUPER_ADMIN_EMAIL:-}"
+      BOOTSTRAP_SUPER_ADMIN_PASSWORD: "${BOOTSTRAP_SUPER_ADMIN_PASSWORD:-}"
+      # ── Saynee inbound webhook (Day 2 close-out) ──
+      # HMAC secret for inbound /api/webhooks/saynee/{tenantSlug}. Leave blank
+      # in dev (HMAC verification is skipped; the tenant-slug path still
+      # gates access). Set in staging/prod once the real Saynee account is
+      # provisioned.
+      SAYNEE_WEBHOOK_SECRET: "${SAYNEE_WEBHOOK_SECRET:-}"
+      # ── ai-services integration (ADR-0004/0005) ──
+      # Backend proxies the provider test-connection to ai-services, and shares this
+      # HMAC secret to authenticate /api/internal/ai/** calls. Blank in dev skips HMAC.
+      AI_SERVICES_BASE_URL: "http://ai-services:8081"
+      AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  opensearch:
+    image: opensearchproject/opensearch:2.17.1
+    container_name: magales-opensearch
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"        # local dev only — no TLS/auth
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - opensearchdata:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ai-services:
+    build:
+      context: ../boardhub-ai-services
+      dockerfile: Dockerfile
+    container_name: magales-ai-services
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    environment:
+      MAGALES_INTERNAL_BASE_URL: "http://api:8080/api"
+      # Must match the api service's AI_SERVICE_HMAC_SECRET (ADR-0004).
+      AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
+      DEFAULT_PROVIDER: "openrouter"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      # OpenSearch is added as a service in Phase 2 (ADR-0003); endpoint wired ahead of time.
+      OPENSEARCH_URL: "http://opensearch:9200"
+      # Provider keys (optional in dev) — supply via host env for live round-trips.
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      # Host's Ollama (self-host path). Reached via host.docker.internal, not localhost.
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      # Speech-to-text engine: "openrouter" (audio-input LLM, best Arabic; uses OPENROUTER_API_KEY)
+      # or "whisper" (local faster-whisper, on-device). The UI can also override per recording.
+      TRANSCRIBE_PROVIDER: "${TRANSCRIBE_PROVIDER:-openrouter}"
+      TRANSCRIBE_OPENROUTER_MODEL: "${TRANSCRIBE_OPENROUTER_MODEL:-google/gemini-2.5-flash}"
+      # Whisper ASR (local backend / fallback); model cached in the volume below.
+      # Arabic accuracy is poor on "small"; "medium" is the CPU sweet spot. For the best
+      # local Arabic transcription set WHISPER_MODEL=large-v3 (heavier download + slower on CPU).
+      WHISPER_MODEL: "${WHISPER_MODEL:-medium}"
+      HF_HOME: "/models/hf"
+      # Scheduled insights (Phase 5): tenants to refresh + interval.
+      INSIGHTS_TENANTS_CSV: "${INSIGHTS_TENANTS_CSV:-acme,globex}"
+      INSIGHTS_REFRESH_MINUTES: "${INSIGHTS_REFRESH_MINUTES:-30}"
+    extra_hosts:
+      # Make host.docker.internal resolvable (automatic on Docker Desktop; explicit for Linux).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Cache for the local embedding + Whisper models so they aren't re-downloaded per run.
+      - aimodelcache:/models
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ../boardhub-ui
+      dockerfile: Dockerfile
+    container_name: magales-ui
+    depends_on:
+      - api
+    ports:
+      - "4200:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  miniodata:
+  aimodelcache:
+  opensearchdata:
