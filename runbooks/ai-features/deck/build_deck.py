@@ -379,9 +379,9 @@ EN = dict(
 AR = dict(
   rtl=True, lang="ar", dir="rtl",
   title="بوردهَب — عرض لصندوق تنمية الموارد البشرية",
-  fonts="family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500",
-  f_display='"Tajawal","IBM Plex Sans Arabic",system-ui,sans-serif',
-  f_body='"IBM Plex Sans Arabic","Tajawal",system-ui,sans-serif',
+  fonts="family=Cairo:wght@400;500;600;700;900&family=IBM+Plex+Mono:wght@400;500",
+  f_display='"Cairo","Noto Kufi Arabic",system-ui,sans-serif',
+  f_body='"Cairo","Noto Kufi Arabic",system-ui,sans-serif',
   client="صندوق تنمية الموارد البشرية", client_sub="هدف",
   prepared="أُعدّ لـ", by="مسار كورب", foot="مسار كورب",
   nav=["الافتتاح","التحدي","الكلفة","المنصة","الانعقاد","القرار","الإثبات","المساعد",
@@ -561,10 +561,10 @@ h1{font-family:var(--f-display);font-weight:800;font-size:clamp(34px,5.2vw,70px)
   line-height:%(h_lh)s;letter-spacing:%(ls)s;margin:0 0 18px;color:var(--ink);text-wrap:balance}
 h2{font-family:var(--f-display);font-weight:700;font-size:clamp(25px,3.4vw,43px);
   line-height:%(h_lh)s;letter-spacing:%(ls)s;margin:0 0 12px;color:var(--ink);text-wrap:balance}
-h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0 0 6px;color:var(--ink)}
+h3{font-family:var(--f-display);font-weight:600;font-size:%(fs_h3)s;margin:0 0 6px;color:var(--ink)}
 .slide.dark h1,.slide.dark h2,.slide.navy h1,.slide.navy h2{color:#F2F8FC}
 .slide.dark h3,.slide.navy h3{color:#EAF3F9}
-.lede{font-size:clamp(15.5px,1.5vw,19px);max-width:64ch;color:var(--muted);margin:0}
+.lede{font-size:clamp(%(fs_lede)s);max-width:64ch;color:var(--muted);margin:0}
 .slide.dark .lede,.slide.navy .lede{color:#93AEC4}
 .ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
 .stamp{position:absolute;top:24px;inset-inline-end:40px;font-family:var(--f-mono);
@@ -575,10 +575,10 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0 0 6px;co
 .g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px}
 .slide.dark .card,.slide.navy .card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}
-.card p{margin:0;font-size:14px;color:var(--muted);line-height:%(lh)s}
+.card p{margin:0;font-size:%(fs_card)s;color:var(--muted);line-height:%(lh)s}
 .slide.dark .card p,.slide.navy .card p{color:#93AEC4}
 .pts{list-style:none;margin:24px 0 0;padding:0;display:flex;flex-direction:column;gap:13px}
-.pts li{position:relative;padding-inline-start:26px;font-size:15px;color:var(--muted);line-height:%(lh)s}
+.pts li{position:relative;padding-inline-start:26px;font-size:%(fs_li)s;color:var(--muted);line-height:%(lh)s}
 .slide.dark .pts li{color:#9BB4C8}
 .pts li::before{content:"";position:absolute;inset-inline-start:0;top:9px;width:8px;height:8px;
   border-radius:2px;background:var(--teal-bright)}
@@ -598,7 +598,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0 0 6px;co
 .cl-t{font-family:var(--f-display);font-weight:700;font-size:14px;fill:var(--teal-bright);
   letter-spacing:.04em;text-transform:uppercase}
 .mod rect{fill:rgba(13,148,136,.13);stroke:rgba(45,212,191,.4)}
-.mod-t{font-family:var(--f-body);font-size:12.5px;fill:#DCE9F4}
+.mod-t{font-family:var(--f-body);font-size:%(fs_mod)s;fill:#DCE9F4}
 .dep{stroke:var(--teal-bright);stroke-width:1.7;fill:none;opacity:.75}
 .dep.dashed{stroke-dasharray:5 6;opacity:.45;animation:march 1.2s linear infinite}
 @keyframes march{to{stroke-dashoffset:-11}}
@@ -614,15 +614,15 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0 0 6px;co
   background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);
   border-radius:10px;padding:10px 14px}
 @media(max-width:760px){.tr-row{grid-template-columns:1fr;gap:5px}}
-.tr-k{font-family:var(--f-display);font-weight:600;font-size:13.5px;color:var(--teal-bright);letter-spacing:.02em}
-.tr-v{font-size:12.8px;color:#B9CADB;line-height:1.55}
+.tr-k{font-family:var(--f-display);font-weight:600;font-size:%(fs_tr_k)s;color:var(--teal-bright);letter-spacing:.02em}
+.tr-v{font-size:%(fs_tr_v)s;color:#B9CADB;line-height:1.55}
 /* comparison */
 .cmp{margin-top:28px;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
 .cmp-col{border-radius:14px;padding:22px;border:1px solid rgba(255,255,255,.12);
   background:rgba(255,255,255,.04)}
 .cmp-col.ours{border-color:var(--teal);background:rgba(13,148,136,.10)}
 .cmp ul{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
-.cmp li{font-size:14px;padding-inline-start:22px;position:relative;color:#9BB4C8;line-height:%(lh)s}
+.cmp li{font-size:%(fs_cmp)s;padding-inline-start:22px;position:relative;color:#9BB4C8;line-height:%(lh)s}
 .cmp li::before{content:"";position:absolute;inset-inline-start:0;top:8px;width:7px;height:7px;
   border-radius:50%%;background:#64798F}
 .cmp-col.ours li::before{background:var(--teal-bright)}
@@ -668,7 +668,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0 0 6px;co
 .mk-pill.warn{background:rgba(232,199,154,.16);color:#E8C79A}
 .mk-pill.bad{background:rgba(232,131,111,.18);color:#F0A091}
 /* demo slide */
-.sub{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+.sub{font-family:var(--f-mono);font-size:%(fs_sub)s;letter-spacing:.16em;text-transform:uppercase;
   color:var(--teal-bright);margin:0 0 12px}
 .fm-wrap{display:grid;gap:30px;margin-top:26px;grid-template-columns:1fr}
 @media(min-width:940px){.fm-wrap{grid-template-columns:1.45fr 1fr}}
@@ -678,13 +678,13 @@ h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0 0 6px;co
 .fm{flex-direction:row;align-items:flex-start;gap:12px}
 .fm>div{display:flex;flex-direction:column;gap:2px;min-width:0}
 .ico{width:26px;height:26px;flex:none;color:var(--teal-bright);margin-top:2px}
-.fm b,.dep-card b{font-family:var(--f-display);font-weight:600;font-size:14.5px;color:#EAF3F9}
-.fm span,.dep-card span{font-size:13px;color:#93AEC4;line-height:1.6}
+.fm b,.dep-card b{font-family:var(--f-display);font-weight:600;font-size:%(fs_fm_b)s;color:#EAF3F9}
+.fm span,.dep-card span{font-size:%(fs_fm_s)s;color:#93AEC4;line-height:1.6}
 .fm:first-child{border-color:var(--teal);background:rgba(13,148,136,.14)}
 .demo{display:flex;flex-direction:column;gap:12px;margin-top:28px}
 .demo div{display:flex;gap:14px;align-items:center;background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:15px 18px;
-  font-size:15px;color:#D5E4F0}
+  font-size:%(fs_demo)s;color:#D5E4F0}
 .demo b{font-family:var(--f-mono);font-size:12px;color:var(--teal-bright);flex:none}
 .reveal{opacity:0;transform:translateY(15px);
   transition:opacity .55s cubic-bezier(.2,.7,.3,1),transform .55s cubic-bezier(.2,.7,.3,1)}
@@ -886,11 +886,28 @@ def build(t):
       <div class="contact">{logo}
         <a class="ltr" href="https://masarrcorp.com">masarrcorp.com</a></div>''',"15:00")
 
+    ar = t['rtl']
     css = CSS % dict(f_display=t['f_display'], f_body=t['f_body'], dir=t['dir'],
-                     lh="1.8" if t['rtl'] else "1.6",
-                     h_lh="1.16" if t['rtl'] else "1.05",
-                     ls="0" if t['rtl'] else "-.028em")
-    return (f'<title>{t["title"]}</title>\n'
+                     lh="1.85" if ar else "1.6",
+                     h_lh="1.2" if ar else "1.05",
+                     ls="0" if ar else "-.028em",
+                     # Arabic script sits smaller on the em than Latin, so the same px reads
+                     # roughly a step down. Every body-copy size is scaled through these.
+                     fs_lede="18.5px, 1.75vw, 22px" if ar else "15.5px, 1.5vw, 19px",
+                     fs_card="15.5px" if ar else "14px",
+                     fs_li="16.5px" if ar else "15px",
+                     fs_cmp="15.5px" if ar else "14px",
+                     fs_tr_k="15px" if ar else "13.5px",
+                     fs_tr_v="14.5px" if ar else "12.8px",
+                     fs_fm_b="16px" if ar else "14.5px",
+                     fs_fm_s="14.5px" if ar else "13px",
+                     fs_h3="19px" if ar else "17px",
+                     fs_demo="17px" if ar else "15px",
+                     fs_mod="14px" if ar else "12.5px",
+                     fs_sub="12.5px" if ar else "11px")
+    return ('<meta charset="utf-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+            f'<title>{t["title"]}</title>\n'
             f'<link rel="preconnect" href="https://fonts.googleapis.com">\n'
             f'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
             f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?{t["fonts"]}&display=swap">\n'
