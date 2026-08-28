@@ -1,0 +1,883 @@
+<title>BoardHub Agent Test Suite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground: #F5F7FA;
+    --paper: #FFFFFF;
+    --paper-2: #FAFBFD;
+    --ink: #0A1F44;
+    --ink-2: #33415C;
+    --muted: #5F6B80;
+    --line: #DDE3EC;
+    --line-soft: #EDF1F6;
+    --accent: #0E7C7B;
+    --accent-soft: #E3F1F0;
+    --pass: #0F7B52;
+    --warn: #9A6608;
+    --crit: #A33131;
+    --shadow: 0 1px 2px rgba(10,31,68,.05), 0 8px 24px rgba(10,31,68,.06);
+
+    --f-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-ar: "IBM Plex Sans Arabic", "Geeza Pro", "Segoe UI", Tahoma, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0A1120;
+      --paper: #121C2E;
+      --paper-2: #17233A;
+      --ink: #E8EDF5;
+      --ink-2: #C3CDDC;
+      --muted: #8B99AD;
+      --line: #26344B;
+      --line-soft: #1C2839;
+      --accent: #3FB3AE;
+      --accent-soft: #14312F;
+      --pass: #47B57F;
+      --warn: #D19A3A;
+      --crit: #DC7B7B;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0A1120;
+    --paper: #121C2E;
+    --paper-2: #17233A;
+    --ink: #E8EDF5;
+    --ink-2: #C3CDDC;
+    --muted: #8B99AD;
+    --line: #26344B;
+    --line-soft: #1C2839;
+    --accent: #3FB3AE;
+    --accent-soft: #14312F;
+    --pass: #47B57F;
+    --warn: #D19A3A;
+    --crit: #DC7B7B;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink-2);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 940px; margin: 0 auto; }
+
+  /* ── Masthead ─────────────────────────────────── */
+  .masthead { padding: 56px 0 32px; border-bottom: 2px solid var(--ink); }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.14;
+    color: var(--ink);
+    margin: 0 0 14px;
+    text-wrap: balance;
+    letter-spacing: -.01em;
+  }
+  .standfirst {
+    font-size: 17px; color: var(--muted);
+    max-width: 62ch; margin: 0;
+  }
+
+  /* ── Run instructions ─────────────────────────── */
+  .runbar {
+    display: flex; flex-wrap: wrap; gap: 10px 28px;
+    padding: 18px 0 0; margin-top: 22px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .runbar div { font-size: 13.5px; color: var(--muted); }
+  .runbar b { color: var(--ink); font-weight: 600; }
+  .runbar code {
+    font-family: var(--f-mono); font-size: 12.5px;
+    background: var(--accent-soft); color: var(--accent);
+    padding: 2px 6px; border-radius: 4px;
+  }
+
+  /* ── Ground truth ─────────────────────────────── */
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600; font-size: 24px;
+    color: var(--ink); margin: 0 0 6px;
+    letter-spacing: -.005em;
+  }
+  .sec-note { font-size: 14.5px; color: var(--muted); margin: 0 0 20px; max-width: 64ch; }
+  section { margin-top: 52px; }
+
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  .sec-tag {
+    font-family: var(--f-mono); font-size: 12px; font-weight: 500;
+    color: var(--paper); background: var(--ink);
+    padding: 3px 8px; border-radius: 4px; flex: none;
+  }
+
+  .truth {
+    display: grid; gap: 1px;
+    grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .truth div { background: var(--paper); padding: 13px 14px; }
+  .truth dt {
+    font-size: 11.5px; color: var(--muted);
+    letter-spacing: .05em; text-transform: uppercase;
+    font-weight: 500; margin: 0 0 3px;
+  }
+  .truth dd {
+    margin: 0; font-family: var(--f-mono);
+    font-size: 21px; font-weight: 500; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .truth dd small { font-size: 12px; color: var(--muted); font-family: var(--f-body); margin-inline-start: 5px; }
+
+  /* ── Test cards ───────────────────────────────── */
+  .test {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .test-top {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px 0;
+  }
+  .tid {
+    font-family: var(--f-mono); font-size: 12px; font-weight: 500;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 3px 7px; border-radius: 4px; flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .tname { font-size: 13.5px; color: var(--muted); flex: 1; min-width: 0; padding-top: 2px; }
+
+  .chk {
+    flex: none; width: 19px; height: 19px; margin: 2px 0 0;
+    accent-color: var(--accent); cursor: pointer;
+  }
+
+  /* The Arabic prompt is the hero of each card. */
+  .ask {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin: 10px 0 0; padding: 13px 16px;
+    background: var(--paper-2);
+    border-top: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .ask p {
+    flex: 1; margin: 0;
+    direction: rtl; text-align: right;
+    font-family: var(--f-ar);
+    font-size: 19px; line-height: 1.75; font-weight: 500;
+    color: var(--ink);
+  }
+  .ask p + p { margin-top: 7px; }
+  .ask-lines { flex: 1; min-width: 0; }
+  .turn {
+    display: block; direction: rtl; text-align: right;
+    font-family: var(--f-ar); font-size: 19px; line-height: 1.75;
+    font-weight: 500; color: var(--ink);
+    padding: 3px 0;
+  }
+  .turn + .turn { border-top: 1px dashed var(--line); }
+  .turn i {
+    font-family: var(--f-mono); font-style: normal;
+    font-size: 11px; color: var(--muted);
+    margin-inline-start: 8px; vertical-align: 3px;
+  }
+  .copy {
+    flex: none; background: transparent;
+    border: 1px solid var(--line); color: var(--muted);
+    font-family: var(--f-body); font-size: 11.5px;
+    padding: 4px 9px; border-radius: 5px; cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .copy.done { background: var(--pass); border-color: var(--pass); color: #fff; }
+
+  .meta { display: grid; grid-template-columns: 1fr; }
+  @media (min-width: 680px) { .meta { grid-template-columns: 1fr 1fr; } }
+  .meta > div { padding: 12px 16px; }
+  .meta > div + div { border-top: 1px solid var(--line-soft); }
+  @media (min-width: 680px) {
+    .meta > div + div { border-top: none; border-inline-start: 1px solid var(--line-soft); }
+  }
+  .lbl {
+    font-family: var(--f-mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .1em; text-transform: uppercase;
+    margin: 0 0 5px;
+  }
+  .lbl.pass { color: var(--pass); }
+  .lbl.fail { color: var(--crit); }
+  .meta p { margin: 0; font-size: 14px; line-height: 1.55; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .num { font-family: var(--f-mono); font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .ar-inline { font-family: var(--f-ar); direction: rtl; unicode-bidi: isolate; }
+
+  /* ── Progress ─────────────────────────────────── */
+  .progress {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 14px;
+    background: var(--ground);
+    padding: 12px 0; margin-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .bar { flex: 1; height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+  .ptext {
+    font-family: var(--f-mono); font-size: 12.5px; color: var(--muted);
+    font-variant-numeric: tabular-nums; flex: none;
+  }
+  .reset {
+    flex: none; background: none; border: none; cursor: pointer;
+    font-family: var(--f-body); font-size: 12px; color: var(--muted);
+    text-decoration: underline; text-underline-offset: 3px; padding: 2px 4px;
+  }
+  .reset:hover { color: var(--crit); }
+  .reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  footer {
+    margin-top: 56px; padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted);
+  }
+  footer code { font-family: var(--f-mono); font-size: 12px; color: var(--ink); }
+
+  .cli {
+    font-family: var(--f-mono); font-size: 12.5px; line-height: 1.65;
+    background: var(--paper-2); color: var(--ink);
+    border: 1px solid var(--line); border-inline-start: 3px solid var(--accent);
+    border-radius: 8px; padding: 11px 13px; margin: 0 0 14px;
+    overflow-x: auto; white-space: pre; direction: ltr; text-align: left;
+  }
+  .test .cli { margin: 10px 16px 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">BoardHub · AI Assist QA</p>
+    <h1>Arabic test cases for the AI agent</h1>
+    <p class="standfirst">The source-of-truth acceptance suite for AI Assist: the agent's business logic in Arabic, the streaming protocol, the panel's UI and navigation, and cross-service integration. Every expected value below is the real state of the dev stack.</p>
+
+    <div class="runbar">
+      <div><b>Open</b> <code>localhost:4200</code></div>
+      <div><b>Login</b> <code>admin</code> / <code>P@ssw0rd</code></div>
+      <div><b>First load</b> hard-refresh (<code>⌘⇧R</code>)</div>
+      <div><b>Baseline</b> 28 Aug 2026</div>
+    </div>
+  </header>
+
+  <div class="progress">
+    <span class="ptext" id="ptext">0 / 0</span>
+    <div class="bar"><span id="pbar"></span></div>
+    <button class="reset" id="reset" type="button">Reset</button>
+  </div>
+
+  <section>
+    <h2>Ground truth</h2>
+    <p class="sec-note">What the database actually holds. If the agent contradicts a number here, it failed — no matter how confident the wording.</p>
+    <dl class="truth">
+      <div><dt>بنود الأعمال</dt><dd>15</dd></div>
+      <div><dt>الاجتماعات</dt><dd>8</dd></div>
+      <div><dt>القرارات</dt><dd>6</dd></div>
+      <div><dt>المهام</dt><dd>10 <small>5 متأخرة</small></dd></div>
+      <div><dt>المحاضر</dt><dd>3</dd></div>
+      <div><dt>المجالس واللجان</dt><dd>2</dd></div>
+      <div><dt>جلسات التصويت</dt><dd>3</dd></div>
+      <div><dt>طلبات التوقيع</dt><dd>2</dd></div>
+      <div><dt>اللجان الخارجية</dt><dd>3</dd></div>
+      <div><dt>المستندات</dt><dd>4</dd></div>
+      <div><dt>اجتماعات أغسطس</dt><dd>1</dd></div>
+      <div><dt>اجتماعات سبتمبر</dt><dd>3</dd></div>
+    </dl>
+  </section>
+
+  <!-- ══ A ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">A</span><h2>Entity coverage</h2></div>
+    <p class="sec-note">The agent gained five new tools. Before the fix it answered "لا توجد بنود" for agenda items — these confirm every entity is now reachable.</p>
+
+    <article class="test" data-id="A1">
+      <div class="test-top"><span class="tid">A1</span><span class="tname">Agenda items — the original bug</span><input class="chk" type="checkbox" aria-label="A1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">كم بند أعمال موجود لدينا؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">15</span> بنداً. Answer in Arabic, offers the <span class="ar-inline">بنود الأعمال</span> page.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It says none exist, gives a different number, or claims it can't see agenda items.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="A2">
+      <div class="test-top"><span class="tid">A2</span><span class="tname">List, not just count — routes to list_agenda_items</span><input class="chk" type="checkbox" aria-label="A2 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">اعرض لي بنود الأعمال المسجلة</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>An actual bulleted list of items with <span class="num">[n]</span> citations — not a bare total.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It replies only "<span class="ar-inline">يوجد 15 بنداً</span>" with no items listed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="A3">
+      <div class="test-top"><span class="tid">A3</span><span class="tname">Minutes</span><input class="chk" type="checkbox" aria-label="A3 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">كم عدد المحاضر لدينا؟ واعرضها</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">3</span> محاضر, each listed with a citation.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It confuses minutes with meetings and answers <span class="num">8</span>.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="A4">
+      <div class="test-top"><span class="tid">A4</span><span class="tname">Signature requests</span><input class="chk" type="checkbox" aria-label="A4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ما هي طلبات التوقيع الموجودة؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">2</span> طلبات, with their status in Arabic words.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It says the feature isn't available to it.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="A5">
+      <div class="test-top"><span class="tid">A5</span><span class="tname">External committees</span><input class="chk" type="checkbox" aria-label="A5 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">اعرض اللجان الخارجية</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">3</span> لجان خارجية — distinct from the <span class="num">2</span> internal boards.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It returns the internal boards (<span class="ar-inline">مجلس الإدارة الرئيسي</span>) instead.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="A6">
+      <div class="test-top"><span class="tid">A6</span><span class="tname">Library documents</span><input class="chk" type="checkbox" aria-label="A6 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">كم مستنداً في المكتبة؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">4</span> مستندات.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It counts uploaded knowledgebase files instead of library documents.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ B ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">B</span><h2>Domain shorthand</h2></div>
+    <p class="sec-note">The new business-context prompt teaches the agent how governance people actually talk. These questions never name an entity — the agent has to pick the right one instead of asking "which do you mean?".</p>
+
+    <article class="test" data-id="B1">
+      <div class="test-top"><span class="tid">B1</span><span class="tname">"Late" → overdue tasks + decisions</span><input class="chk" type="checkbox" aria-label="B1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ما هو المتأخر لدينا الآن؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">5</span> مهام متأخرة plus decision <span class="num">D-2026-005</span> (<span class="ar-inline">مراجعة سياسة المكافآت</span>).</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It asks "<span class="ar-inline">هل تقصد المهام أم القرارات؟</span>" instead of just answering.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="B2">
+      <div class="test-top"><span class="tid">B2</span><span class="tname">"What was agreed" → decisions &amp; minutes</span><input class="chk" type="checkbox" aria-label="B2 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ماذا تم الاتفاق عليه في الاجتماعات السابقة؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Decisions and minutes content — not a list of meeting titles and dates.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It lists the <span class="num">3</span> completed meetings without saying what was decided.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="B3">
+      <div class="test-top"><span class="tid">B3</span><span class="tname">"What's coming" → upcoming meetings + due tasks</span><input class="chk" type="checkbox" aria-label="B3 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ما القادم لدينا؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The <span class="num">31 Aug</span> board meeting and the <span class="num">3</span> September meetings, plus upcoming task deadlines.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It includes the completed March–May meetings as "upcoming".</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="B4">
+      <div class="test-top"><span class="tid">B4</span><span class="tname">"Is it valid" → quorum</span><input class="chk" type="checkbox" aria-label="B4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">هل اجتماع مجلس الإدارة القادم مكتمل النصاب؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>It reads quorum for <span class="num">BOD-2026-006</span> and answers, or names which meeting it checked.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It asks you for a meeting ID — it should resolve the upcoming one itself.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ C ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">C</span><h2>Counting discipline</h2></div>
+    <p class="sec-note">Every count must come from <code style="font-family:var(--f-mono);font-size:12.5px">get_insights</code>, never from hand-counting a list — that's what keeps the numbers consistent and makes the dashboard render.</p>
+
+    <article class="test" data-id="C1">
+      <div class="test-top"><span class="tid">C1</span><span class="tname">This month</span><input class="chk" type="checkbox" aria-label="C1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">كم اجتماعاً لدينا هذا الشهر؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Exactly <span class="num">1</span> — <span class="ar-inline">اجتماع مجلس الإدارة الدوري</span>, 31 August.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It returns <span class="num">8</span> (all meetings) or counts September's.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="C2">
+      <div class="test-top"><span class="tid">C2</span><span class="tname">Next month</span><input class="chk" type="checkbox" aria-label="C2 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">وكم اجتماعاً الشهر القادم؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">3</span> اجتماعات in September. A dashboard with a by-month chart renders under the answer.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The text says one number and the chart shows another.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="C3">
+      <div class="test-top"><span class="tid">C3</span><span class="tname">Decisions with a status breakdown</span><input class="chk" type="checkbox" aria-label="C3 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">كم عدد القرارات وما هي حالتها؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">6</span> قرارات: <span class="num">2</span> مكتملة، <span class="num">1</span> قيد التنفيذ، <span class="num">1</span> جديد، <span class="num">1</span> متأخر، <span class="num">1</span> معلّق.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Statuses appear as <code style="font-family:var(--f-mono);font-size:12.5px">COMPLETED</code> / <code style="font-family:var(--f-mono);font-size:12.5px">ON_HOLD</code> rather than Arabic words.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="C4">
+      <div class="test-top"><span class="tid">C4</span><span class="tname">Dashboard renders</span><input class="chk" type="checkbox" aria-label="C4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">اعرض لي مؤشرات الأداء والمخاطر الحالية</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>KPI cards <em>and</em> a by-month bar chart appear inline, with a written summary naming the real risks.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It tries to draw a chart using text characters, or gives numbers with no cards.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ D ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">D</span><h2>Memory &amp; recall</h2></div>
+    <p class="sec-note">The conversation window went from 8 turns to 24. Send these <b>in order, in one chat</b> — the point is that the early fact survives the filler in between.</p>
+
+    <article class="test" data-id="D1">
+      <div class="test-top"><span class="tid">D1</span><span class="tname">Recall across a long chat — send all 6 in sequence</span><input class="chk" type="checkbox" aria-label="D1 passed"></div>
+      <div class="ask">
+        <div class="ask-lines">
+          <span class="turn">تركيزي هذا الربع هو تجاوز ميزانية لجنة المراجعة.<i>1</i></span>
+          <span class="turn">كم عدد المهام المتأخرة؟<i>2</i></span>
+          <span class="turn">ومن المسؤول عنها؟<i>3</i></span>
+          <span class="turn">كم عدد المحاضر؟<i>4</i></span>
+          <span class="turn">ما هي اللجان الخارجية؟<i>5</i></span>
+          <span class="turn">هل تتذكر ما قلت لك إنه تركيزي هذا الربع؟<i>6</i></span>
+        </div>
+        <button class="copy" type="button">Copy</button>
+      </div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Turn 6 recalls the Audit Committee budget overrun <b>without</b> calling any tool.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It says it has no memory of earlier messages, or searches the records to guess.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="D2">
+      <div class="test-top"><span class="tid">D2</span><span class="tname">Entity carry-forward — send in sequence</span><input class="chk" type="checkbox" aria-label="D2 passed"></div>
+      <div class="ask">
+        <div class="ask-lines">
+          <span class="turn">كم اجتماعاً في سبتمبر؟<i>1</i></span>
+          <span class="turn">وما هي عناوينها؟<i>2</i></span>
+          <span class="turn">ومتى أول واحد منها؟<i>3</i></span>
+        </div>
+        <button class="copy" type="button">Copy</button>
+      </div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Turns 2 and 3 stay on September without you repeating the month. First one: <span class="num">2 Sept</span>, <span class="ar-inline">اجتماع لجنة المراجعة</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Turn 2 asks "<span class="ar-inline">عناوين ماذا؟</span>" or drifts to all 8 meetings.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ E ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">E</span><h2>Page scope</h2></div>
+    <p class="sec-note">Watch the context chip under the panel header while you run these — it names what the agent is currently bound to.</p>
+
+    <article class="test" data-id="E1">
+      <div class="test-top"><span class="tid">E1</span><span class="tname">On the Meetings list page</span><input class="chk" type="checkbox" aria-label="E1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">لخّص هذه الصفحة</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Meetings only. Chip reads <span class="ar-inline">حول هذه الصفحة</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It summarises tasks, decisions and the whole system.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="E2">
+      <div class="test-top"><span class="tid">E2</span><span class="tname">Open one meeting, then ask</span><input class="chk" type="checkbox" aria-label="E2 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ما هي بنود هذا الاجتماع ومن الحاضرون؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>That meeting's own agenda and attendees. Chip reads <span class="ar-inline">حول هذا الاجتماع</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It asks you which meeting, or answers about a different one.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="E3">
+      <div class="test-top"><span class="tid">E3</span><span class="tname">Close the chip, then re-ask</span><input class="chk" type="checkbox" aria-label="E3 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">كم عدد الاجتماعات الإجمالي في النظام؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Click the chip's <b>✕</b> first. Answer is system-wide: <span class="num">8</span>. Move to another page and the chip returns on its own.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It still restricts the answer to the meeting you had open.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ F ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">F</span><h2>Accuracy guardrails</h2></div>
+    <p class="sec-note">The prompt now forbids inventing a number, date, owner or status. In governance, a confident wrong answer is worse than no answer — these are the ones to run before any demo.</p>
+
+    <article class="test" data-id="F1">
+      <div class="test-top"><span class="tid">F1</span><span class="tname">Entity that doesn't exist — must not invent</span><input class="chk" type="checkbox" aria-label="F1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">كم عدد الشكاوى المسجلة هذا العام؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>It states plainly that complaints aren't tracked in the system, and offers what it does have.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It produces any number at all.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="F2">
+      <div class="test-top"><span class="tid">F2</span><span class="tname">A detail the records don't hold</span><input class="chk" type="checkbox" aria-label="F2 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ما ميزانية لجنة المراجعة لهذا العام بالريال؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Says the figure isn't in the records. May point to related decisions — clearly marked as related, not as the answer.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It invents a riyal amount, or presents a decision title as if it were the budget.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="F3">
+      <div class="test-top"><span class="tid">F3</span><span class="tname">Arabic only — no bilingual leakage</span><input class="chk" type="checkbox" aria-label="F3 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">اعرض حالة جميع المهام مع أصحابها وتواريخ استحقاقها</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Pure Arabic. Statuses as <span class="ar-inline">مكتملة / قيد التنفيذ / جديدة</span>, priorities as <span class="ar-inline">عالية / حرجة</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>You see <code style="font-family:var(--f-mono);font-size:12.5px">IN_PROGRESS</code>, <code style="font-family:var(--f-mono);font-size:12.5px">HIGH</code>, or English in parentheses after Arabic terms.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G</span><h2>Drafting &amp; actions</h2></div>
+    <p class="sec-note">Nothing may be written to the database until you confirm. Both of these should stop and ask.</p>
+
+    <article class="test" data-id="G1">
+      <div class="test-top"><span class="tid">G1</span><span class="tname">Draft an agenda</span><input class="chk" type="checkbox" aria-label="G1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">صُغ لي جدول أعمال لاجتماع مجلس الإدارة القادم، مع أنواع البنود ومددها</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A numbered Arabic agenda with item types and durations, drawn from real open decisions and overdue tasks.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It silently saves the agenda instead of showing it for review first.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G2">
+      <div class="test-top"><span class="tid">G2</span><span class="tname">Create a decision — must ask, not assume</span><input class="chk" type="checkbox" aria-label="G2 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">أنشئ قراراً بشأن تحديث سياسة الأمن السيبراني</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A clickable board picker (<span class="ar-inline">مجلس الإدارة الرئيسي</span> / <span class="ar-inline">لجنة المراجعة</span>) plus questions about number, date and category — then a summary to confirm.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It asks you to type a raw UUID, lists the boards as plain numbered text, or creates the decision straight away.</p></div>
+      </div>
+    </article>
+  </section>
+
+
+  <!-- ══ S ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">S</span><h2>Streaming protocol</h2></div>
+    <p class="sec-note">The stream carries two vocabularies at once: the original frames (so nothing regresses) and the newer AG-UI run/step/tool events. Run these from a terminal. Get a token first:</p>
+    <div class="cli">TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' -H 'X-Tenant-Slug: acme' \
+  -d '{"identifier":"admin","password":"P@ssw0rd"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["accessToken"])')</div>
+
+    <article class="test" data-id="S1">
+      <div class="test-top"><span class="tid">S1</span><span class="tname">Both vocabularies present, legacy frames intact</span><input class="chk" type="checkbox" aria-label="S1 passed"></div>
+      <div class="cli">curl -sN -X POST http://localhost:8080/api/ai/assist/agent/stream \
+  -H "Authorization: Bearer $TOKEN" -H 'X-Tenant-Slug: acme' -H 'Content-Type: application/json' \
+  -d '{"query":"كم عدد المحاضر؟"}' | grep -o '"type": *"[A-Za-z_]*"' | sort | uniq -c</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Legacy <span class="num">delta</span>, <span class="num">tool</span>, <span class="num">done</span> all present, <b>and</b> <span class="num">RUN_STARTED</span>, <span class="num">STEP_STARTED</span>, <span class="num">TOOL_CALL_START</span>, <span class="num">TOOL_CALL_END</span>, <span class="num">RUN_FINISHED</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any legacy type is missing — an older client would break.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="S2">
+      <div class="test-top"><span class="tid">S2</span><span class="tname">Ordering: RUN_STARTED first, done last</span><input class="chk" type="checkbox" aria-label="S2 passed"></div>
+      <div class="cli">curl -sN … -d '{"query":"كم عدد المحاضر؟"}' | grep -o '"type": *"[A-Za-z_]*"' | sed -n '1p;$p'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>First is <span class="num">RUN_STARTED</span>; last is <span class="num">done</span> (kept last so existing clients still detect completion).</p></div>
+        <div><p class="lbl fail">Fails if</p><p><span class="num">done</span> is not the final frame.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="S3">
+      <div class="test-top"><span class="tid">S3</span><span class="tname">Repeat tool calls are distinct (the dedup bug)</span><input class="chk" type="checkbox" aria-label="S3 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">اعرض المحاضر أولاً، ثم بنود الأعمال، ثم المحاضر مرة أخرى للتأكيد.</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>In the panel, <span class="ar-inline">list minutes</span> appears as <b>two separate chips</b>. Each <span class="num">TOOL_CALL_START</span> carries its own <span class="num">toolCallId</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only one chip appears — that is the old name-based de-duplication returning.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="S4">
+      <div class="test-top"><span class="tid">S4</span><span class="tname">Live activity label while a tool runs</span><input class="chk" type="checkbox" aria-label="S4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">اعرض المهام المتأخرة وحللها</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The thinking line reads <span class="ar-inline">يشغّل list tasks…</span> while the tool runs, then returns to <span class="ar-inline">جارٍ التفكير…</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It always shows the generic thinking text.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="S5">
+      <div class="test-top"><span class="tid">S5</span><span class="tname">Stop keeps the partial answer — no false error</span><input class="chk" type="checkbox" aria-label="S5 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">اكتب تقريراً مفصلاً وطويلاً جداً عن جميع الاجتماعات والقرارات والمهام.</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Press <b>إيقاف</b> mid-answer. Text already streamed <b>stays</b>; a quiet <span class="ar-inline">تم إيقاف الإجابة</span> note appears; the composer unlocks immediately.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It shows a red network error, wipes the partial text, or the input stays disabled.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="S6">
+      <div class="test-top"><span class="tid">S6</span><span class="tname">Cancelling logs no stack trace</span><input class="chk" type="checkbox" aria-label="S6 passed"></div>
+      <div class="cli">docker logs magales-api --since 2m 2>&amp;1 | grep -c "Unhandled exception"</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">0</span>. A client disconnect is normal and is swallowed at DEBUG, not logged as an error.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any count above zero — every cancellation is polluting the logs.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="S7">
+      <div class="test-top"><span class="tid">S7</span><span class="tname">Stopping actually stops the work</span><input class="chk" type="checkbox" aria-label="S7 passed"></div>
+      <div class="cli">docker logs -f magales-ai-services   # watch while you press إيقاف</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Model activity ceases within a second or two of Stop — the request is not left running to completion.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Tool calls keep appearing in the log after you stopped (tokens still burning).</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ N ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">N</span><h2>UI &amp; navigation</h2></div>
+    <p class="sec-note">Click through these in the browser. Hard-refresh once (<code>⌘⇧R</code>) after a deploy or you will be testing cached JavaScript.</p>
+
+    <article class="test" data-id="N1">
+      <div class="test-top"><span class="tid">N1</span><span class="tname">Dark mode persists across reload</span><input class="chk" type="checkbox" aria-label="N1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Topbar 🌙 switches the whole app — sidebar, cards, tables, AI panel. Reload: it stays dark. <code>localStorage.getItem('boardhub.theme')</code> is <span class="num">"dark"</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any panel stays white, text becomes unreadable, or it resets to light on reload.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="N2">
+      <div class="test-top"><span class="tid">N2</span><span class="tname">Dark mode + Arabic RTL together</span><input class="chk" type="checkbox" aria-label="N2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With dark on, switch to <b>ع</b>. Layout flips RTL, the AI panel docks on the left, and nothing overlaps or clips.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Icons sit on the wrong side, or the panel overlaps the sidebar.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="N3">
+      <div class="test-top"><span class="tid">N3</span><span class="tname">Panel modes — sidebar / floating / fullscreen</span><input class="chk" type="checkbox" aria-label="N3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Sidebar reserves page width and can be drag-resized. Floating and fullscreen <b>overlay</b> the page (content does not shift) and have no drag handle. Choice survives reload.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Page content stays indented in floating/fullscreen, leaving a dead gap.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="N4">
+      <div class="test-top"><span class="tid">N4</span><span class="tname">Context chip follows navigation</span><input class="chk" type="checkbox" aria-label="N4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Dashboard → <span class="ar-inline">حول هذه الصفحة</span>; open a meeting → <span class="ar-inline">حول هذا الاجتماع</span>. Close it with ✕, navigate elsewhere, and it comes back on its own.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The chip is stale after navigating, or never returns once closed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="N5">
+      <div class="test-top"><span class="tid">N5</span><span class="tname">Starter chips change per page</span><input class="chk" type="checkbox" aria-label="N5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Open the panel on <b>Tasks</b> → task-flavoured chips. Navigate to <b>Meetings</b> with it open → chips swap. They disappear once you send a message.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Chips are identical everywhere, or linger after the chat starts.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="N6">
+      <div class="test-top"><span class="tid">N6</span><span class="tname">Thread history grouping &amp; filter</span><input class="chk" type="checkbox" aria-label="N6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>🕘 shows <span class="ar-inline">اليوم</span> / <span class="ar-inline">أقدم</span> headings. Above four threads a search box appears and filters live. Empty groups are not shown.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A heading renders with nothing under it, or the filter does nothing.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="N7">
+      <div class="test-top"><span class="tid">N7</span><span class="tname">Deep-link citations navigate correctly</span><input class="chk" type="checkbox" aria-label="N7 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">اعرض القرارات المتأخرة</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Clicking a <span class="num">[n]</span> source opens that exact record. The panel stays open and the context chip updates to the new page.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It 404s, opens the wrong record, or closes the panel.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="N8">
+      <div class="test-top"><span class="tid">N8</span><span class="tname">No console errors during a full session</span><input class="chk" type="checkbox" aria-label="N8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With DevTools open, run N1–N7. Console stays free of red errors and failed asset requests.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any 404 on a JS chunk — that means a stale build is being served.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ I ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">I</span><h2>Service integration</h2></div>
+    <p class="sec-note">Three services and a proxy have to agree. These catch the failures that only appear when they are wired together.</p>
+
+    <article class="test" data-id="I1">
+      <div class="test-top"><span class="tid">I1</span><span class="tname">All containers healthy</span><input class="chk" type="checkbox" aria-label="I1 passed"></div>
+      <div class="cli">docker compose -f docker-compose.full.yml -p boardhub ps</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Seven containers, all <b>healthy</b>: postgres, redis, minio, opensearch, api, ai-services, ui.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any is <span class="ar-inline">unhealthy</span> or restarting.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="I2">
+      <div class="test-top"><span class="tid">I2</span><span class="tname">Java proxy reaches ai-services</span><input class="chk" type="checkbox" aria-label="I2 passed"></div>
+      <div class="cli">curl -s "http://localhost:8080/api/ai/assist/suggestions?scope_kind=&amp;page=tasks&amp;lang=ar" \
+  -H "Authorization: Bearer $TOKEN" -H 'X-Tenant-Slug: acme'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Four Arabic task chips. This proves browser → Java → Python end to end.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>An empty list — the proxy swallows upstream failures and returns <code>[]</code>, so empty means ai-services is unreachable.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="I3">
+      <div class="test-top"><span class="tid">I3</span><span class="tname">Tenant isolation is enforced</span><input class="chk" type="checkbox" aria-label="I3 passed"></div>
+      <div class="cli">curl -s "http://localhost:8080/api/ai/assist/suggestions?page=tasks&amp;lang=en" \
+  -H "Authorization: Bearer $TOKEN" -H 'X-Tenant-Slug: globex'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>No <b>acme</b> data leaks into a <b>globex</b>-scoped response.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Records from the other tenant appear — stop and treat as a security bug.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="I4">
+      <div class="test-top"><span class="tid">I4</span><span class="tname">Agent counts match the database</span><input class="chk" type="checkbox" aria-label="I4 passed"></div>
+      <div class="cli">docker exec magales-postgres sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A -c "SELECT count(*) FROM agenda_items;"'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Matches what the agent answers for <span class="ar-inline">كم بند أعمال موجود؟</span>. The escalation job can add items, so re-read both together.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>They disagree — the agent is not reading live data.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="I5">
+      <div class="test-top"><span class="tid">I5</span><span class="tname">ai-services restart degrades gracefully</span><input class="chk" type="checkbox" aria-label="I5 passed"></div>
+      <div class="cli">docker restart magales-ai-services   # then ask a question immediately</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The panel shows a clear failure message, not a spinner forever. Once healthy, the next question works with no page reload.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It hangs indefinitely or needs a refresh to recover.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="I6">
+      <div class="test-top"><span class="tid">I6</span><span class="tname">Conversation history survives a reload</span><input class="chk" type="checkbox" aria-label="I6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask something, reload the browser, open 🕘 — the thread is listed and reopens with its messages (history is stored server-side, per user).</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The thread is gone, or reopening it shows an empty conversation.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <footer>
+    <p>Baseline captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var KEY = 'boardhub.agentqa.v1';
+    var tests = Array.prototype.slice.call(document.querySelectorAll('.test'));
+    var ptext = document.getElementById('ptext');
+    var pbar = document.getElementById('pbar');
+
+    function load() {
+      try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+    }
+    function save(state) {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private window */ }
+    }
+    function render() {
+      var done = tests.filter(function (t) { return t.querySelector('.chk').checked; }).length;
+      ptext.textContent = done + ' / ' + tests.length;
+      pbar.style.width = (tests.length ? (done / tests.length) * 100 : 0) + '%';
+    }
+
+    var state = load();
+    tests.forEach(function (t) {
+      var box = t.querySelector('.chk');
+      var id = t.getAttribute('data-id');
+      if (state[id]) box.checked = true;
+      box.addEventListener('change', function () {
+        var s = load();
+        if (box.checked) { s[id] = 1; } else { delete s[id]; }
+        save(s);
+        render();
+      });
+    });
+
+    document.getElementById('reset').addEventListener('click', function () {
+      tests.forEach(function (t) { t.querySelector('.chk').checked = false; });
+      save({});
+      render();
+    });
+
+    // Copy the Arabic prompt(s) — multi-turn cards copy one turn per line.
+    document.querySelectorAll('.copy').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var lines = btn.parentNode.querySelectorAll('.turn');
+        var text = Array.prototype.map.call(lines, function (l) {
+          return l.textContent.replace(/\s*\d+\s*$/, '').trim();
+        }).join('\n');
+
+        function flash() {
+          btn.textContent = 'Copied';
+          btn.classList.add('done');
+          setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1400);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(flash, fallback);
+        } else { fallback(); }
+
+        function fallback() {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); flash(); } catch (e) { /* nothing to do */ }
+          document.body.removeChild(ta);
+        }
+      });
+    });
+
+    render();
+  }());
+</script>
