@@ -27,7 +27,7 @@ name: magales-dev
 services:
   postgres:
     image: pgvector/pgvector:pg15
-    container_name: magales-postgres
+    container_name: boardhub-postgres
     environment:
       POSTGRES_DB: magales
       POSTGRES_USER: magales
@@ -45,7 +45,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: magales-redis
+    container_name: boardhub-redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -57,7 +57,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: magales-minio
+    container_name: boardhub-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: magales
@@ -78,7 +78,7 @@ services:
     build:
       context: ../boardhub
       dockerfile: Dockerfile
-    container_name: magales-api
+    container_name: boardhub-api
     depends_on:
       postgres:
         condition: service_healthy
@@ -133,7 +133,7 @@ services:
 
   opensearch:
     image: opensearchproject/opensearch:2.17.1
-    container_name: magales-opensearch
+    container_name: boardhub-opensearch
     environment:
       discovery.type: single-node
       DISABLE_SECURITY_PLUGIN: "true"        # local dev only — no TLS/auth
@@ -158,7 +158,7 @@ services:
     build:
       context: ../boardhub-ai-services
       dockerfile: Dockerfile
-    container_name: magales-ai-services
+    container_name: boardhub-ai-services
     depends_on:
       postgres:
         condition: service_healthy
@@ -207,7 +207,7 @@ services:
     build:
       context: ../boardhub-ui
       dockerfile: Dockerfile
-    container_name: magales-ui
+    container_name: boardhub-ui
     depends_on:
       - api
     ports:

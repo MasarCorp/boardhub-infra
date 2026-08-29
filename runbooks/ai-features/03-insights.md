@@ -34,7 +34,7 @@ The scheduler runs every `INSIGHTS_REFRESH_MINUTES` (default 30) for `INSIGHTS_T
 (default `acme,globex`). Check the worker log:
 
 ```bash
-docker logs magales-ai-services 2>&1 | grep "insights refreshed"
+docker logs boardhub-ai-services 2>&1 | grep "insights refreshed"
 ```
 
 ## 3. Narrative insights (UI)

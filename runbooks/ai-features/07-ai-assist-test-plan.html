@@ -278,6 +278,27 @@
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
   }
+
+  /* ── Dated addition marker ────────────────────── */
+  .added {
+    margin-top: 64px; padding-top: 22px;
+    border-top: 2px solid var(--ink);
+  }
+  .added-tag {
+    display: inline-block;
+    font-family: var(--f-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--paper); background: var(--accent);
+    padding: 4px 9px; border-radius: 4px;
+  }
+  .added p { font-size: 14.5px; color: var(--muted); max-width: 66ch; margin: 14px 0 0; }
+  .gap {
+    border-inline-start: 3px solid var(--warn);
+    background: var(--paper-2);
+    border-radius: 8px; padding: 12px 14px; margin: 10px 16px 0;
+    font-size: 14px; color: var(--ink-2);
+  }
+  .gap b { color: var(--warn); }
 </style>
 
 <div class="wrap">
@@ -291,7 +312,9 @@
       <div><b>Open</b> <code>localhost:4200</code></div>
       <div><b>Login</b> <code>admin</code> / <code>P@ssw0rd</code></div>
       <div><b>First load</b> hard-refresh (<code>⌘⇧R</code>)</div>
-      <div><b>Baseline</b> 28 Aug 2026</div>
+      <div><b>Baseline</b> 28 Aug 2026 · <b>+R/P/V</b> 29 Aug 2026</div>
+      <div><b>2nd account</b> <code>test.member</code> / <code>Test@1234</code></div>
+      <div><b>Containers</b> <code>boardhub-*</code> <span style="opacity:.7">(renamed from magales-* on 30 Aug)</span></div>
     </div>
   </header>
 
@@ -688,7 +711,7 @@
 
     <article class="test" data-id="S6">
       <div class="test-top"><span class="tid">S6</span><span class="tname">Cancelling logs no stack trace</span><input class="chk" type="checkbox" aria-label="S6 passed"></div>
-      <div class="cli">docker logs magales-api --since 2m 2>&amp;1 | grep -c "Unhandled exception"</div>
+      <div class="cli">docker logs boardhub-api --since 2m 2>&amp;1 | grep -c "Unhandled exception"</div>
       <div class="meta">
         <div><p class="lbl pass">Expect</p><p><span class="num">0</span>. A client disconnect is normal and is swallowed at DEBUG, not logged as an error.</p></div>
         <div><p class="lbl fail">Fails if</p><p>Any count above zero — every cancellation is polluting the logs.</p></div>
@@ -697,7 +720,7 @@
 
     <article class="test" data-id="S7">
       <div class="test-top"><span class="tid">S7</span><span class="tname">Stopping actually stops the work</span><input class="chk" type="checkbox" aria-label="S7 passed"></div>
-      <div class="cli">docker logs -f magales-ai-services   # watch while you press إيقاف</div>
+      <div class="cli">docker logs -f boardhub-ai-services   # watch while you press إيقاف</div>
       <div class="meta">
         <div><p class="lbl pass">Expect</p><p>Model activity ceases within a second or two of Stop — the request is not left running to completion.</p></div>
         <div><p class="lbl fail">Fails if</p><p>Tool calls keep appearing in the log after you stopped (tokens still burning).</p></div>
@@ -885,7 +908,7 @@
 
     <article class="test" data-id="I4">
       <div class="test-top"><span class="tid">I4</span><span class="tname">Agent counts match the database</span><input class="chk" type="checkbox" aria-label="I4 passed"></div>
-      <div class="cli">docker exec magales-postgres sh -c \
+      <div class="cli">docker exec boardhub-postgres sh -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A -c "SELECT count(*) FROM agenda_items;"'</div>
       <div class="meta">
         <div><p class="lbl pass">Expect</p><p>Matches what the agent answers for <span class="ar-inline">كم بند أعمال موجود؟</span>. The escalation job can add items, so re-read both together.</p></div>
@@ -895,7 +918,7 @@
 
     <article class="test" data-id="I5">
       <div class="test-top"><span class="tid">I5</span><span class="tname">ai-services restart degrades gracefully</span><input class="chk" type="checkbox" aria-label="I5 passed"></div>
-      <div class="cli">docker restart magales-ai-services   # then ask a question immediately</div>
+      <div class="cli">docker restart boardhub-ai-services   # then ask a question immediately</div>
       <div class="meta">
         <div><p class="lbl pass">Expect</p><p>The panel shows a clear failure message, not a spinner forever. Once healthy, the next question works with no page reload.</p></div>
         <div><p class="lbl fail">Fails if</p><p>It hangs indefinitely or needs a refresh to recover.</p></div>
@@ -911,8 +934,488 @@
     </article>
   </section>
 
+  <!-- ══ ADDED 29 AUGUST 2026 ═══════════════════ -->
+  <div class="added">
+    <span class="added-tag">Added 29 August 2026</span>
+    <p>Three changes shipped on 29 August: personal reminders (with an identity fix in the agent proxy), attendee-grounded minutes attribution, and stereo capture in the recorder. Every expected value in <b>R</b> and <b>P</b> was observed against the running dev stack on 29 Aug; <b>V</b> is a browser check that cannot be run from a shell. R needs a second account — seed the standard set with <code>npx tsx scripts/seed-test-users.ts --token $TOKEN --tenant acme</code> from <code>boardhub-ui</code>.</p>
+  </div>
+
+  <!-- ══ R ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">R</span><h2>Personal reminders</h2></div>
+    <p class="sec-note">A reminder is an intention about the future, private to the person who set it. These check that the assistant can set one, that the owner boundary holds, and that no caller can set one in someone else's name.</p>
+
+    <article class="test" data-id="R1">
+      <div class="test-top"><span class="tid">R1</span><span class="tname">The assistant sets a reminder from an explicit date</span><input class="chk" type="checkbox" aria-label="R1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ذكّرني يوم ١٠ سبتمبر الساعة ٩ صباحاً بمراجعة القرارات المتأخرة</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>set_reminder</code> in the tool trace. The reply confirms the resolved date back in words, and the row appears in <code>GET /api/reminders</code> as <span class="ar-inline">PENDING</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It says it cannot set reminders, promises one without calling the tool, or stores a different date than the one it confirmed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="R2">
+      <div class="test-top"><span class="tid">R2</span><span class="tname">Relative phrasing is anchored to the real meeting</span><input class="chk" type="checkbox" aria-label="R2 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">ذكّرني قبل اجتماع لجنة المراجعة القادم بمراجعة عقود الموردين</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>list_meetings</code> <b>then</b> <code>set_reminder</code>. The date comes from the real meeting — with <span class="num">AUD-2026-004</span> on 2 Sept the reminder lands 1 Sept 09:00 — and the row carries <code>subjectType: MEETING</code> and a <code>/meetings/{id}</code> route.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It stores the phrase "before the next meeting" verbatim, picks a date with no meeting behind it, or leaves <code>subjectType</code> and <code>route</code> empty so the reminder cannot link back.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="R3">
+      <div class="test-top"><span class="tid">R3</span><span class="tname">Lifecycle — create, list, delete</span><input class="chk" type="checkbox" aria-label="R3 passed"></div>
+      <div class="cli">H=(-H "Authorization: Bearer $TOKEN" -H 'X-Tenant-Slug: acme' -H 'Content-Type: application/json')
+ID=$(curl -s -X POST http://localhost:8080/api/reminders "${H[@]}" \
+  -d '{"message":"smoke test","remindAt":"2026-09-05T09:00:00"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+curl -s http://localhost:8080/api/reminders "${H[@]}"
+curl -s -o /dev/null -w '%{http_code}\n' -X DELETE "http://localhost:8080/api/reminders/$ID" "${H[@]}"</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Create returns the row; the list is ordered soonest-first; delete returns <span class="num">204</span> and the row disappears from the list (soft delete).</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The list is unordered, or a deleted reminder still appears.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="R4">
+      <div class="test-top"><span class="tid">R4</span><span class="tname">Snooze re-arms rather than silencing</span><input class="chk" type="checkbox" aria-label="R4 passed"></div>
+      <div class="cli">curl -s -X PATCH "http://localhost:8080/api/reminders/$ID/snooze" "${H[@]}" \
+  -d '{"remindAt":"2026-09-12T09:00:00"}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>snoozeCount</code> increments and <code>status</code> returns to <span class="ar-inline">PENDING</span> — a snoozed reminder must be picked up again, and the count is kept because repeated snoozing is itself a signal that the work is stuck.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Status stays <span class="ar-inline">SNOOZED</span> (a future delivery job would never fire it) or the count resets.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="R5">
+      <div class="test-top"><span class="tid">R5</span><span class="tname">A reminder is private to its owner</span><input class="chk" type="checkbox" aria-label="R5 passed"></div>
+      <div class="cli"># log in as test.member / Test@1234, then aim at a reminder owned by admin
+curl -s -o /dev/null -w '%{http_code}\n' -X PATCH \
+  "http://localhost:8080/api/reminders/$ADMIN_REMINDER_ID/snooze" "${MEMBER_H[@]}" \
+  -d '{"remindAt":"2026-10-01T09:00:00"}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">403</span>. Tenant scope is not the boundary here — a reminder reveals what someone is working on, so ownership is checked on every read and write.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><span class="num">200</span>, or a <span class="num">404</span> that leaks whether the id exists at all.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="R6">
+      <div class="test-top"><span class="tid">R6</span><span class="tname">An ordinary user cannot set a reminder for a colleague</span><input class="chk" type="checkbox" aria-label="R6 passed"></div>
+      <div class="cli"># as test.member (BOARD_MEMBER), aiming ownerId at the admin user
+curl -s -X POST http://localhost:8080/api/reminders "${MEMBER_H[@]}" \
+  -d '{"ownerId":"11111111-1111-1111-1111-111111111111",
+       "message":"privilege escalation attempt","remindAt":"2026-09-07T09:00:00"}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The <code>ownerId</code> is ignored: the reminder is created for <b>test.member</b>, <code>source: USER</code>, and never appears in admin's list. Nobody can plant an item in another person's day.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It lands in admin's list — treat as a security bug, not a validation bug.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="R7">
+      <div class="test-top"><span class="tid">R7</span><span class="tname">A privileged caller may set one for a user — write-only</span><input class="chk" type="checkbox" aria-label="R7 passed"></div>
+      <div class="cli"># as admin (SUPER_ADMIN / SYSTEM_ADMIN / TENANT_ADMIN)
+curl -s -X POST http://localhost:8080/api/reminders "${H[@]}" \
+  -d '{"ownerId":"&lt;test.member id&gt;","message":"owned by the member",
+       "remindAt":"2026-09-06T09:00:00"}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Created with <code>source: AGENT</code>, visible in <b>test.member</b>'s list and <b>not</b> in admin's. Admin then gets <span class="num">403</span> trying to read or delete it — this path exists so AI Assist, which authenticates as a service account, can set a reminder that belongs to the person who asked.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A non-admin role is allowed through, or the creator can still see the reminder afterwards.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="R8">
+      <div class="test-top"><span class="tid">R8</span><span class="tname">Identity cannot be forged through the agent proxy</span><input class="chk" type="checkbox" aria-label="R8 passed"></div>
+      <div class="cli">curl -s -X POST http://localhost:8080/api/ai/assist/agent "${H[@]}" -d '{
+  "query":"Remind me on 2026-09-10 at 09:00 to review the overdue decisions",
+  "current_user_id":"&lt;some other user id&gt;"}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The forged id is discarded — the proxy overwrites <code>current_user_id</code> from the JWT subject on both <code>/agent</code> and <code>/agent/stream</code> — so the reminder belongs to the caller. The same field drives the task-assignee fallback, so this covers more than reminders.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The reminder appears in the forged user's list. Stop and treat as a security regression.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="R9">
+      <div class="test-top"><span class="tid">R9</span><span class="tname">The 29 Aug delivery gap — now closed</span><input class="chk" type="checkbox" aria-label="R9 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><b>Closed 30 Aug 2026.</b> This card recorded a deliberate gap — a reminder could be set but nothing ever delivered it. Delivery, snooze-from-the-bell and a Reminders screen now exist: see sections <b>D</b> and <b>X</b>. Tick this once D1 passes.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>D1 fails — then the gap is back, and it is now a bug rather than a known limitation.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ P ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">P</span><h2>Minutes attribution</h2></div>
+    <p class="sec-note">The transcript carries no speaker labels, yet the minutes prompt asks for an attendance section and for action-item owners. The registered attendee roster is now fetched into the context, and the rule is explicit: name a person only where the transcript says so. Run these through <code>POST /api/ai/assist/meeting-notes/generate</code>.</p>
+
+    <article class="test" data-id="P1">
+      <div class="test-top"><span class="tid">P1</span><span class="tname">The roster reaches the model</span><input class="chk" type="checkbox" aria-label="P1 passed"></div>
+      <div class="cli">curl -s -X POST http://localhost:8080/api/ai/assist/meeting-notes/generate "${H[@]}" -d '{
+  "meeting_id":"dd000015-0001-0000-0000-000000000005","language":"ar",
+  "transcript":"ناقشنا تقرير المراجعة الداخلية. تم الاتفاق على تحديث سياسة إدارة المخاطر."}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The <span class="ar-inline">الحضور</span> section lists the three registered attendees of <span class="num">AUDIT-2026-003</span> — أ. فهد العتيبي, د. سعد القحطاني, د. نورة المطيري — marked as voting members.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Attendance is empty, or lists names that are not on that meeting's roster.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="P2">
+      <div class="test-top"><span class="tid">P2</span><span class="tname">An unattributed action stays unattributed</span><input class="chk" type="checkbox" aria-label="P2 passed"></div>
+      <div class="cli"># same call as P1 — the transcript names nobody
+"transcript":"ناقشنا تقرير المراجعة الداخلية. تم الاتفاق على تحديث سياسة إدارة المخاطر ورفعها للمجلس خلال أسبوعين. كما تقرر مراجعة عقود الموردين."</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Every <code>actionItems.owner</code> is <code>""</code>, even though three real attendees are sitting in the context. An unattributed action is correct; a confidently wrong name in board minutes is not.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It assigns an owner — this is the failure the roster made <em>more</em> likely, because the model now has real names available to choose from.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="P3">
+      <div class="test-top"><span class="tid">P3</span><span class="tname">An explicit name is attributed, spelled from the roster</span><input class="chk" type="checkbox" aria-label="P3 passed"></div>
+      <div class="cli">"transcript":"قال د. سعد القحطاني إنه سيتولى تحديث سياسة إدارة المخاطر ورفعها للمجلس خلال أسبوعين. ثم ناقشت اللجنة عقود الموردين واتفقت على مراجعتها."</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The first action is owned by <span class="ar-inline">د. سعد القحطاني</span>, spelled exactly as the roster has it. The second action — discussed by "the committee" — still has an empty owner.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The name is paraphrased or re-spelled, or the second action inherits the same owner by proximity.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="P4">
+      <div class="test-top"><span class="tid">P4</span><span class="tname">A meeting with no roster says so</span><input class="chk" type="checkbox" aria-label="P4 passed"></div>
+      <div class="cli">"meeting_id":"dd000017-0001-0000-0000-000000000007"   # AUD-2026-004, zero attendees</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The attendance section reads <span class="ar-inline">لم يتم تسجيل قائمة الحضور</span> — recorded absence of data, not an empty heading and not a guess.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Names appear from anywhere: the agenda, the board's usual members, or the model's imagination.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="P5">
+      <div class="test-top"><span class="tid">P5</span><span class="tname">A roster lookup failure is not fatal</span><input class="chk" type="checkbox" aria-label="P5 passed"></div>
+      <div class="cli">"meeting_id":"00000000-0000-0000-0000-000000000999"   # no such meeting</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Minutes are still generated from the transcript alone, noting that attendance and agenda were not recorded. The roster is an enrichment; losing it must never cost the user their minutes.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A <span class="num">502</span> or an error object comes back instead of notes.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ V ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">V</span><h2>Recording channels</h2></div>
+    <p class="sec-note">The recorder used to sum the microphone and the meeting tab into one mono track, destroying the only free speaker cue at the moment of capture. Mic now goes left, meeting audio right. Browser checks — they cannot be run from a shell.</p>
+
+    <article class="test" data-id="V1">
+      <div class="test-top"><span class="tid">V1</span><span class="tname">Two sources record as stereo</span><input class="chk" type="checkbox" aria-label="V1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Record with both the mic and a tab sharing audio, download the file, and inspect it (<code>ffprobe</code>, or any editor): <b>2 channels</b>. Speak into the mic only — the waveform moves on the left. Play sound in the shared tab only — it moves on the right.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The file is mono, or both sources appear on both channels.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="V2">
+      <div class="test-top"><span class="tid">V2</span><span class="tname">Mic-only recording is unchanged</span><input class="chk" type="checkbox" aria-label="V2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Record with the microphone alone: still <b>1 channel</b>, and transcription behaves exactly as before. This is the regression guard — the common case must not have changed.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The mic lands on one side of a silent stereo file, which would halve its level after any downmix.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="V3">
+      <div class="test-top"><span class="tid">V3</span><span class="tname">A refused source does not sink the recording</span><input class="chk" type="checkbox" aria-label="V3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Share a tab <em>without</em> ticking "share tab audio", then record. The mic recording still works and still transcribes; the missing source is skipped rather than throwing.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Recording fails to start, or produces an empty file.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="V4">
+      <div class="test-top"><span class="tid">V4</span><span class="tname">Known gap — nothing consumes the channels yet</span><input class="chk" type="checkbox" aria-label="V4 passed"></div>
+      <div class="gap"><b>Expected gap, not a bug.</b> Minutes will not say who spoke. Both transcription paths still downmix, and the per-utterance <code>segments</code> now returned by the local Whisper path have no consumer — the dev stack runs <code>TRANSCRIBE_PROVIDER=openrouter</code>, which does not produce them at all. This change captures the signal so attribution becomes possible later without re-recording; it does not deliver attribution.</div>
+    </article>
+  </section>
+
+  <!-- ══ ADDED 30 AUGUST 2026 ═══════════════════ -->
+  <div class="added">
+    <span class="added-tag">Added 30 August 2026</span>
+    <p>Reminders now reach the person who set them. A locked scheduled sweep turns a due reminder into a notification in the existing bell, and a Reminders screen lists what is open with snooze / done / dismiss. Sections <b>D</b> and <b>X</b> cover the loop that was missing on 29 Aug — the gap R9 used to record. Every <b>D</b> expectation was observed against the dev stack; <b>X</b> is a browser check.</p>
+  </div>
+
+  <!-- ══ D ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">D</span><h2>Reminder delivery</h2></div>
+    <p class="sec-note">The sweep runs every five minutes on the <code>0 */5 * * * *</code> cron, holds a ShedLock so only one replica delivers, and publishes into the notification pipeline that already feeds the bell. A reminder that fires must move <span class="ar-inline">PENDING → SENT</span> exactly once.</p>
+
+    <article class="test" data-id="D1">
+      <div class="test-top"><span class="tid">D1</span><span class="tname">A due reminder reaches the bell</span><input class="chk" type="checkbox" aria-label="D1 passed"></div>
+      <div class="cli"># acme's tenant timezone is America/New_York — "due" is read on THAT clock, see D2
+PAST=$(python3 -c "import datetime,zoneinfo; print((datetime.datetime.now(
+  zoneinfo.ZoneInfo('America/New_York'))-datetime.timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M:%S'))")
+curl -s -X POST http://localhost:8080/api/reminders "${H[@]}" \
+  -d "{\"message\":\"delivery test\",\"remindAt\":\"$PAST\"}"
+# wait for the next 5-minute boundary, then:
+curl -s http://localhost:8080/api/notifications/unread-count "${H[@]}"</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Within five minutes the unread count rises and a <code>REMINDER_DUE</code> notification appears, <code>referenceType: REMINDER</code>, <code>referenceId</code> the reminder's id, body = the reminder's own words. The reminder's status becomes <span class="ar-inline">SENT</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing arrives — check <code>docker logs boardhub-api | grep "delivery sweep"</code> first: a sweep that reports <span class="num">0</span> delivered is a due-time problem (D2), a sweep that never logs is a scheduler problem.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="D2">
+      <div class="test-top"><span class="tid">D2</span><span class="tname">"Due" is the tenant's clock, not the server's</span><input class="chk" type="checkbox" aria-label="D2 passed"></div>
+      <div class="cli">docker exec -e PGPASSWORD=magales-dev boardhub-postgres \
+  psql -U magales -d magales -tAc "select slug, timezone from tenants"
+docker exec boardhub-api date        # the container runs UTC</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>remind_at</code> is a wall-clock value with no zone in it, so it is compared against <code>LocalDateTime.now(tenantZone)</code>. Set a reminder for five minutes ago <em>on the tenant's clock</em> and it fires on the next sweep; set it five minutes ago on the <em>server's</em> clock and — where the two zones differ — it does not, which is correct.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Delivery tracks the container's UTC clock. That is the bug this test exists for: a Riyadh user's 09:00 reminder arriving at 12:00 is worse than no reminder, because they stopped watching for it at 09:00.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="D3">
+      <div class="test-top"><span class="tid">D3</span><span class="tname">A reminder fires once, not on every sweep</span><input class="chk" type="checkbox" aria-label="D3 passed"></div>
+      <div class="cli">docker exec -e PGPASSWORD=magales-dev boardhub-postgres psql -U magales -d magales \
+  -c "select status, count(*) from ai_reminders group by status"
+# leave the stack running for 15 minutes (three sweeps), then re-count notifications
+docker exec -e PGPASSWORD=magales-dev boardhub-postgres psql -U magales -d magales \
+  -c "select reference_id, count(*) from notifications where event='REMINDER_DUE' group by reference_id having count(*) > 1"</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>No rows from the second query. Status moves to <span class="ar-inline">SENT</span> in the same transaction that publishes, so the next sweep no longer sees it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any reference_id has more than one notification — a reminder that repeats every five minutes for ever is a reason to switch the feature off.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="D4">
+      <div class="test-top"><span class="tid">D4</span><span class="tname">Only one replica delivers</span><input class="chk" type="checkbox" aria-label="D4 passed"></div>
+      <div class="cli">docker exec -e PGPASSWORD=magales-dev boardhub-postgres psql -U magales -d magales \
+  -c "select name, locked_by, locked_at, lock_until from shedlock"</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>One <code>reminderDelivery</code> row, <code>locked_by</code> naming the host that ran last. With <code>docker compose up -d --scale api=2</code>, a due reminder still produces exactly one notification.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The table is missing (it is not a JPA entity — dev gets it from <code>data-postgres.sql</code>, prod from Flyway V14), or two replicas both deliver.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="D5">
+      <div class="test-top"><span class="tid">D5</span><span class="tname">The bell entry leads somewhere</span><input class="chk" type="checkbox" aria-label="D5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A reminder tied to a meeting deep-links to that meeting; a free-standing one opens <code>/reminders</code>. Neither is a dead end.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The notification has a null route and clicking it does nothing.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="D6">
+      <div class="test-top"><span class="tid">D6</span><span class="tname">The delivery notice is not suppressed as self-directed</span><input class="chk" type="checkbox" aria-label="D6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The owner receives it. <code>NotificationService.createFromEvent</code> removes the actor from the recipients, and a reminder is the one case where actor and recipient are the same person — the job leaves <code>actorId</code> null on purpose. This test exists because the failure is silent: notifications simply never appear, with nothing in the log.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The sweep logs "Delivered N" but no notification rows exist for those ids.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ X ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">X</span><h2>Reminders screen</h2></div>
+    <p class="sec-note">Browser checks at <code>localhost:4200/reminders</code>, reachable from the sidebar. The page separates what is asking for a decision now from what is merely scheduled.</p>
+
+    <article class="test" data-id="X1">
+      <div class="test-top"><span class="tid">X1</span><span class="tname">Due and upcoming are separated</span><input class="chk" type="checkbox" aria-label="X1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Reminders whose time has passed sit under <span class="ar-inline">مستحقة الآن</span> with the accent border and the full action row; later ones sit under <span class="ar-inline">القادمة</span>. One set asks for a decision, the other is just a list.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Everything lands in one undifferentiated list, or a due reminder shows no actions.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="X2">
+      <div class="test-top"><span class="tid">X2</span><span class="tname">Snooze moves it and keeps the count</span><input class="chk" type="checkbox" aria-label="X2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>+1d / +3d / +7d on an overdue reminder pushes from <b>now</b>, not from its stale time — snoozing something three days overdue by a day means tomorrow. The row moves to Upcoming and shows <span class="ar-inline">أُجّلت ١ مرة</span>. It becomes deliverable again (status returns to PENDING).</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The new date is still in the past, or the snooze count resets.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="X3">
+      <div class="test-top"><span class="tid">X3</span><span class="tname">Done and dismiss both close it out</span><input class="chk" type="checkbox" aria-label="X3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Both remove the row from the open list and it stays gone after a reload — <span class="ar-inline">DONE</span> means the work happened, <span class="ar-inline">DISMISSED</span> means never mind. Neither deletes the record.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The row returns on reload, or the action silently fails and the UI still hides it.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="X4">
+      <div class="test-top"><span class="tid">X4</span><span class="tname">Arabic and English both read correctly</span><input class="chk" type="checkbox" aria-label="X4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Switch languages: the page mirrors to RTL, every label is translated (no raw <code>REMINDERS.*</code> keys), and a reminder the assistant set is marked <span class="ar-inline">ضبطه المساعد</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any key shows through untranslated, or the action buttons overflow their row in Arabic.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ ADDED 30 AUGUST 2026 · ROUND 2 ═════════ -->
+  <div class="added">
+    <span class="added-tag">Added 30 August 2026 · round 2</span>
+    <p>The reminder card that interrupts instead of waiting to be noticed, the assistant's recents workspace, and the timezone conversion that makes a reminder land at the hour the user typed. Everything in <b>K</b>, <b>W</b> and <b>Z</b> was observed in a real browser against the dev stack.</p>
+  </div>
+
+  <!-- ══ K ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">K</span><h2>The reminder card</h2></div>
+    <p class="sec-note">A bell badge waits to be noticed, which is the one thing a reminder cannot afford. When a reminder fires, a card appears with the three things a person might want: put it off, close it, or do something about it.</p>
+
+    <article class="test" data-id="K1">
+      <div class="test-top"><span class="tid">K1</span><span class="tname">The card appears when a reminder fires</span><input class="chk" type="checkbox" aria-label="K1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Within ~30s of delivery (the bell's poll), a card slides in at the bottom inline-end corner — bottom-left in Arabic, bottom-right in English — showing the reminder's own words and four controls: <span class="ar-inline">×</span>, <span class="ar-inline">تحدّث عن هذا</span>, <span class="ar-inline">ذكّرني لاحقاً</span>, <span class="ar-inline">تجاهل</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only the bell count moves. Check there is an <b>unread</b> <code>REMINDER_DUE</code> notification — the card feeds on the same data as the badge, and an already-read one will not poke.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="K2">
+      <div class="test-top"><span class="tid">K2</span><span class="tname">An ignored card does not nag forever</span><input class="chk" type="checkbox" aria-label="K2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Reload without touching the card: it does not come back. The id is remembered in <code>localStorage</code> under <code>boardhub.reminder.poked</code>. The reminder itself is untouched — still open, still on the Reminders page, still unread in the bell.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It reappears on every reload, or it disappears from the bell too — being poked is not the same as being handled.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="K3">
+      <div class="test-top"><span class="tid">K3</span><span class="tname">Remind me later, from the card</span><input class="chk" type="checkbox" aria-label="K3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="ar-inline">ذكّرني لاحقاً</span> reveals <span class="num">+1</span> / <span class="num">+3</span> / <span class="num">+7</span> day chips; picking one snoozes from <b>now</b>, the card animates out, and the bell count drops. The reminder returns to <span class="ar-inline">PENDING</span> so it will fire again.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The new time is computed from the reminder's stale time and is still in the past, or the card vanishes without the snooze reaching the API.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="K4">
+      <div class="test-top"><span class="tid">K4</span><span class="tname">Chat about this — the assistant picks up the subject</span><input class="chk" type="checkbox" aria-label="K4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>For a reminder linked to a record: the browser navigates to that record, the panel opens on a <b>fresh</b> thread with the question already asked, and the answer says where the subject stands now and offers <b>2–4 concrete actions the assistant can carry out</b> — add an agenda item, create a task, draft a decision — ending with which one you want.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It restates the reminder back at you. The user wrote it; repeating it is not an answer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="K5">
+      <div class="test-top"><span class="tid">K5</span><span class="tname">The context is what carries the subject</span><input class="chk" type="checkbox" aria-label="K5 passed"></div>
+      <div class="cli">curl -s -X POST http://localhost:8080/api/ai/assist/agent "${H[@]}" -d '{
+  "query":"ما التالي؟",
+  "reminder_context":"مراجعة عقود الموردين قبل اجتماع لجنة المراجعة",
+  "scope_kind":"meeting","scope_id":"dd000017-0001-0000-0000-000000000007"}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A bare two-word question still produces an answer about supplier contracts before the audit committee meeting. This is the discriminating test — without <code>reminder_context</code> the agent has nothing to go on.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It asks what you are referring to.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ W ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">W</span><h2>The assistant's workspace</h2></div>
+    <p class="sec-note">Conversations and the meeting notes the assistant produced, in one list, named after what they are about.</p>
+
+    <article class="test" data-id="W1">
+      <div class="test-top"><span class="tid">W1</span><span class="tname">A thread is named after its subject, not its first message</span><input class="chk" type="checkbox" aria-label="W1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">لخّص هذه الصفحة</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask it from the Tasks page, wait for the answer, then open 🕘. The thread is titled something like <span class="ar-inline">صفحة المهام التشغيلية والاستراتيجية</span> — the subject — not the words you typed. Ask the same starter from two different pages and the two threads get <b>different</b> names.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The list fills with identical rows reading <span class="ar-inline">لخّص هذه الصفحة</span>. That was the bug this replaces.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="W2">
+      <div class="test-top"><span class="tid">W2</span><span class="tname">Naming never delays the answer</span><input class="chk" type="checkbox" aria-label="W2 passed"></div>
+      <div class="cli">docker stop boardhub-ai-services   # then ask a question and watch the panel</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The title arrives a moment <em>after</em> the answer is on screen, never before. With ai-services down, the answer fails as usual and the thread simply keeps its first-message title — the naming call is best-effort at every layer, down to the Java proxy returning an empty title rather than a 502.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The answer is held back while the title is fetched, or a naming failure surfaces as an error to the user.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="W3">
+      <div class="test-top"><span class="tid">W3</span><span class="tname">Conversations and meeting notes in one list</span><input class="chk" type="checkbox" aria-label="W3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>🕘 shows both kinds, newest first, each row carrying an icon (<span class="ar-inline">💬</span> conversation, <span class="ar-inline">📄</span> meeting notes), its title and its date and time. Search filters across both. A 📄 row opens the notes; a 💬 row reopens the conversation.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only conversations appear, or a notes row tries to open as a chat.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="W4">
+      <div class="test-top"><span class="tid">W4</span><span class="tname">Fullscreen keeps the navigator open</span><input class="chk" type="checkbox" aria-label="W4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Switch the panel to fullscreen: the navigator docks down the inline-start edge (272px) instead of hiding behind the icon, and the conversation stays centred. Below 1100px the dock hides and 🕘 still reaches the same thing — it is one template used twice.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The dock overlaps the conversation, or the dropdown and the dock disagree.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="W5">
+      <div class="test-top"><span class="tid">W5</span><span class="tname">The tab bar — chat · meetings · inbox · search</span><input class="chk" type="checkbox" aria-label="W5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Four tabs: 💬 <span class="ar-inline">المحادثة</span>, 🎙 <span class="ar-inline">الاجتماعات</span>, 📥 <span class="ar-inline">الوارد</span>, 🔍 <span class="ar-inline">بحث</span>. Icons only until a tab is active, which then shows its name. A dot sits on 📥 while a reminder is due. Chat is the default.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any tab navigates away instead of switching section — that was the bug this replaced: a button that only redirected to <code>/meeting-notes</code>.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="W6">
+      <div class="test-top"><span class="tid">W6</span><span class="tname">A note opens inside the panel</span><input class="chk" type="checkbox" aria-label="W6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On 🎙, click a note: its title, date and summary appear <b>in the panel</b> with <span class="ar-inline">رجوع</span>, <span class="ar-inline">اسأل عن هذا</span> and <span class="ar-inline">فتح الصفحة</span>. <b>The browser URL does not change.</b> In sidebar/floating mode there is no room, so it opens the page instead — that is deliberate.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Fullscreen navigates away. Leaving the conversation to read a note is the thing this exists to stop.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="W7">
+      <div class="test-top"><span class="tid">W7</span><span class="tname">Ask about this — the note becomes the subject</span><input class="chk" type="checkbox" aria-label="W7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="ar-inline">اسأل عن هذا</span> returns to 💬 and the context chip changes from <span class="ar-inline">حول هذه الصفحة</span> to <b>the note's own title</b>. Questions about it are answered from the note. Meeting notes are owner-scoped, so the agent cannot fetch one itself — the facts travel with the request.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The chip still describes the page, or the agent says it cannot see the note.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="W8">
+      <div class="test-top"><span class="tid">W8</span><span class="tname">Inbox — reminders, actionable in place</span><input class="chk" type="checkbox" aria-label="W8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>📥 lists reminders, due ones first on an accent background, each with <span class="ar-inline">تحدّث عن هذا</span> · <span class="num">+1</span> يوم · <span class="ar-inline">تم</span> · <span class="ar-inline">تجاهل</span>. Acting removes the row and the tab's dot clears when nothing is due. <span class="ar-inline">تحدّث عن هذا</span> behaves exactly like the card's — same entry point.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The inbox and the <code>/reminders</code> page disagree, or an action here does not persist.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="W9">
+      <div class="test-top"><span class="tid">W9</span><span class="tname">Search spans conversations and notes</span><input class="chk" type="checkbox" aria-label="W9 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>🔍 filters both kinds in one list, each row keeping its icon, so a half-remembered word finds the thing whether it was said in a chat or written in a note.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It searches conversations only.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ Z ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Z</span><h2>Timezones</h2></div>
+    <p class="sec-note">A reminder must arrive at the hour the person meant. Times are stored on the organisation's clock — the only reading the agent can use for "before the next meeting" — and the browser converts in both directions so the user always types and reads their own local time.</p>
+
+    <article class="test" data-id="Z1">
+      <div class="test-top"><span class="tid">Z1</span><span class="tname">What you type is what you see</span><input class="chk" type="checkbox" aria-label="Z1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On <code>/reminders</code>, set one for a specific local time — say 14:30 today. The row reads <b>14:30</b>, in your own timezone, regardless of the organisation's. Note Arabic renders the digits as <span class="ar-inline">٢:٣٠ م</span>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The row shows a shifted hour. Check the org's zone against yours before assuming it is a bug — the gap will equal the offset.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Z2">
+      <div class="test-top"><span class="tid">Z2</span><span class="tname">It fires at that local time</span><input class="chk" type="checkbox" aria-label="Z2 passed"></div>
+      <div class="cli">docker exec -e PGPASSWORD=magales-dev boardhub-postgres psql -U magales -d magales \
+  -tAc "select slug, timezone from tenants"</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Set one two minutes ahead in your own clock; the card appears within about seven minutes (up to five for the sweep, plus the bell's poll). The stored <code>remind_at</code> is the organisation's wall clock, so it will read differently in SQL — that is correct, not drift.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It arrives hours late or early. The offset between your zone and the tenant's is the size of the bug — this is exactly how the <code>America/New_York</code> seed was caught.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Z3">
+      <div class="test-top"><span class="tid">Z3</span><span class="tname">No timezone preference to set</span><input class="chk" type="checkbox" aria-label="Z3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Nothing to configure. The viewer's machine timezone is used automatically, so two people in different countries see the same reminder each at their own local time. Deliberate: a stored preference goes stale the moment someone travels.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Times only look right for a user who happens to sit in the organisation's timezone.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Baseline captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>

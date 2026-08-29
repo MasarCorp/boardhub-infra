@@ -114,7 +114,7 @@ All other seed users (acme: `f.otaibi`, `m.otaibi`, `s.qahtani`,
    Alternatively pull from API logs:
 
    ```bash
-   docker logs magales-api | grep -i "verification"
+   docker logs boardhub-api | grep -i "verification"
    ```
 
 5. Verify-email page shows "Email verified", counts down 3 seconds,
@@ -263,7 +263,7 @@ docker compose -f docker-compose.dev.yml down -v
     docker compose -f docker-compose.dev.yml up -d --build api
   ```
 
-  Then check `docker logs magales-api | grep BOOTSTRAP` for the
+  Then check `docker logs boardhub-api | grep BOOTSTRAP` for the
   confirmation lines.
 
 ---
