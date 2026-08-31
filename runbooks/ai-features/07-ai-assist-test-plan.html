@@ -1414,8 +1414,149 @@ docker exec -e PGPASSWORD=magales-dev boardhub-postgres psql -U magales -d magal
     </article>
   </section>
 
+  <!-- ══ ADDED 1 SEPTEMBER 2026 ═══════════════ -->
+  <div class="added">
+    <span class="added-tag">Added 1 September 2026</span>
+    <p>Roadmap items 1, 2 and 9, plus the icon library the Angular 22 upgrade unblocked. <b>L</b> and <b>Q</b> were observed against the running stack; <b>T</b> proves the browser can now answer a run that is still in flight, which the transport could not do before.</p>
+  </div>
+
+  <!-- ══ L ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">L</span><h2>Cross-lingual retrieval</h2></div>
+    <p class="sec-note">Arabic and English share one vector space, so one search covers the whole archive. The point of these checks is that it works in <em>both</em> directions — it did not before.</p>
+
+    <article class="test" data-id="L1">
+      <div class="test-top"><span class="tid">L1</span><span class="tname">An English question finds the Arabic record</span><input class="chk" type="checkbox" aria-label="L1 passed"></div>
+      <div class="cli">curl -s -X POST http://localhost:8081/v1/rag/search -H 'X-Tenant-Slug: acme' \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"board of directors periodic meeting held in March","k":3}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Rank 1 is the Arabic minutes of the periodic board meeting held 25 March — <span class="ar-inline">محضر الاجتماع الدوري الحادي عشر</span>. The query shares no tokens with it; only the embedding connects them.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only English documents come back, or nothing does.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="L2">
+      <div class="test-top"><span class="tid">L2</span><span class="tname">An Arabic question finds the English record</span><input class="chk" type="checkbox" aria-label="L2 passed"></div>
+      <div class="cli"># ingest an English-only document first, then ask about it in Arabic
+curl -s -X POST http://localhost:8081/v1/rag/documents -H 'X-Tenant-Slug: acme' \
+  -H 'Content-Type: application/json' -d '{"documents":[{"id":"xl-probe","title":"Whistleblowing Policy",
+  "text":"Any employee may report suspected fraud, bribery or a conflict of interest confidentially to the Audit Committee chair."}]}'
+curl -s -X POST http://localhost:8081/v1/rag/search -H 'X-Tenant-Slug: acme' \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"كيف يبلغ الموظف عن الاحتيال أو تضارب المصالح","k":3}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The English policy at rank 1. <b>Delete the probe afterwards</b> — a fabricated policy has no business sitting in a governance archive.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only Arabic records return. This is the direction that was broken: BM25 cannot match across languages, so before weighted fusion a cross-lingual hit was supported by one ranking while same-language hits had two, and lost on score alone.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="L3">
+      <div class="test-top"><span class="tid">L3</span><span class="tname">Same-language retrieval did not regress</span><input class="chk" type="checkbox" aria-label="L3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ordinary Arabic questions still return the right Arabic records first. Weighting the semantic ranking at <code>rag_knn_weight</code> 1.5 must not demote exact lexical matches — BM25 is still what finds a decision number or a person's name.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Searching a decision number stops returning that decision.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="L4">
+      <div class="test-top"><span class="tid">L4</span><span class="tname">The agent does not search twice</span><input class="chk" type="checkbox" aria-label="L4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">هل يوجد لدينا سياسة مكتوبة بالإنجليزية عن الإبلاغ عن المخالفات؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>One <code>search_governance</code> call. The answer is in the user's language, and says which language the source was written in when quoting it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It translates the question and searches again, or says a record "may exist in the other language" — it has already searched that language.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ Q ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Q</span><h2>Precedent detection</h2></div>
+    <p class="sec-note">Boards re-litigate settled matters because the context is gone by the time the question returns. This puts the earlier record in front of whoever is asking — as candidates, never as a verdict.</p>
+
+    <article class="test" data-id="Q1">
+      <div class="test-top"><span class="tid">Q1</span><span class="tname">Has the board decided this before?</span><input class="chk" type="checkbox" aria-label="Q1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">هل سبق للمجلس أن اتخذ قراراً بشأن الميزانية التشغيلية؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>find_precedent</code> in the tool trace. It returns decision <span class="num">D-2026-001</span> and the 25 March minutes that adopted it, each cited by number, each with what it decided and when.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It answers from general knowledge without calling the tool, or cites nothing.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Q2">
+      <div class="test-top"><span class="tid">Q2</span><span class="tname">Candidates, not verdicts</span><input class="chk" type="checkbox" aria-label="Q2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The wording offers related matters for the reader to judge. It must <b>not</b> say the matter is "already decided", "settled", or "a duplicate" — boards re-open matters deliberately, and asserting otherwise is the expensive direction to be wrong in.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It declares equivalence, or tells the user not to proceed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Q3">
+      <div class="test-top"><span class="tid">Q3</span><span class="tname">Only decisions and minutes count as precedent</span><input class="chk" type="checkbox" aria-label="Q3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Library uploads and attached papers never appear as precedent. A paper someone uploaded is evidence; only a decision or the minutes record a position the board actually took.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>An uploaded document is offered as something the board decided.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Q4">
+      <div class="test-top"><span class="tid">Q4</span><span class="tname">A miss is reported honestly</span><input class="chk" type="checkbox" aria-label="Q4 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">هل سبق أن قرر المجلس شيئاً بخصوص استخدام الطاقة الشمسية؟</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Something equivalent to "the record does not show it" — not "the board has never discussed this". The archive's silence is not proof of absence, and in a governance tool the difference matters.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It asserts the board never considered the subject.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ T ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">T</span><h2>Mid-run interrupt (browser → agent)</h2></div>
+    <p class="sec-note">Until now the transport was one-way: the browser could start a run and watch it, never speak to one in flight. A picker was emitted <em>after</em> the run ended and clicking it began a new turn. These checks prove the answer now reaches the run that asked.</p>
+
+    <article class="test" data-id="T1">
+      <div class="test-top"><span class="tid">T1</span><span class="tname">The run parks and says so, while still open</span><input class="chk" type="checkbox" aria-label="T1 passed"></div>
+      <div class="ask"><div class="ask-lines"><span class="turn">أنشئ قراراً جديداً بعنوان مراجعة سياسة السفر</span></div><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The stream carries an AG-UI <code>CUSTOM</code> frame named <code>input_required</code>, with a <code>runId</code> and the board options — <b>while the run is still open</b>. The picker renders and the stream has not finished.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The options only arrive with <code>RUN_FINISHED</code>. That is the old behaviour: the tool blocks inside <code>agent.stream_async</code>, so without racing the agent against an out-of-band queue the frame cannot get out and the run waits for an answer to a question nobody saw.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="T2">
+      <div class="test-top"><span class="tid">T2</span><span class="tname">The answer reaches the waiting run</span><input class="chk" type="checkbox" aria-label="T2 passed"></div>
+      <div class="cli">curl -s -X POST http://localhost:8080/api/ai/assist/agent/resume "${H[@]}" \
+  -d '{"run_id":"&lt;runId from the CUSTOM frame&gt;","value":"لجنة المراجعة والتدقيق"}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>{"accepted": true}</code>, and the <b>same</b> SSE stream keeps producing text — it does not start over. The agent uses the chosen committee and carries on gathering the rest of the decision.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>accepted:false</code> while the picker is on screen, or a second run appears in the transcript.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="T3">
+      <div class="test-top"><span class="tid">T3</span><span class="tname">Clicking the picker in the browser does the same</span><input class="chk" type="checkbox" aria-label="T3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask the same question in the panel and click a board. One continuous answer, no second user turn in the transcript, and the chosen board is not re-asked.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The click posts the board name as a new message — that is the fallback path, correct only when nothing is waiting.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="T4">
+      <div class="test-top"><span class="tid">T4</span><span class="tname">An unanswered picker does not hang the run</span><input class="chk" type="checkbox" aria-label="T4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ignore the picker: after 180s the run continues without a choice and says so. Close the tab instead and the parked run is released at once rather than sitting out the timeout.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The connection is held open indefinitely, or the run errors instead of carrying on. A user who ignores a picker has not caused a failure.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="T5">
+      <div class="test-top"><span class="tid">T5</span><span class="tname">Known limit — one replica only</span><input class="chk" type="checkbox" aria-label="T5 passed"></div>
+      <div class="gap"><b>Expected limit, not a bug.</b> The parked run is a future in one process, so a resume must reach the pod holding it. With <code>--scale ai-services=2</code> a resume that lands on the wrong pod returns <code>accepted:false</code> and the UI falls back to sending an ordinary message — degraded, not broken. Before scaling out, add sticky sessions keyed on <code>runId</code> or a shared channel. Tick this once you have confirmed the fallback behaves.</div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; and <b>L</b>, <b>Q</b> and <b>T</b> on 1 September for cross-lingual retrieval, precedent detection and the mid-run interrupt. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
