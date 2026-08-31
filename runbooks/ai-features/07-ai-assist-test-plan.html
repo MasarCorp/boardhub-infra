@@ -1417,7 +1417,7 @@ docker exec -e PGPASSWORD=magales-dev boardhub-postgres psql -U magales -d magal
   <!-- ══ ADDED 1 SEPTEMBER 2026 ═══════════════ -->
   <div class="added">
     <span class="added-tag">Added 1 September 2026</span>
-    <p>Roadmap items 1, 2 and 9, plus the icon library the Angular 22 upgrade unblocked. <b>L</b> and <b>Q</b> were observed against the running stack; <b>T</b> proves the browser can now answer a run that is still in flight, which the transport could not do before.</p>
+    <p>Roadmap items 1, 2 and 9, plus the icon library the Angular 22 upgrade unblocked. <b>L</b> and <b>Q</b> were observed against the running stack; <b>T</b> proves the browser can now answer a run that is still in flight, which the transport could not do before; <b>O</b> covers the move onto <code>@ng-icons/lucide</code>. Where the UI has no surface for a thing — retrieval rank, bundle size — the check reads it from the backend or the build instead, and says so.</p>
   </div>
 
   <!-- ══ L ══════════════════════════════════════ -->
@@ -1453,6 +1453,11 @@ curl -s -X POST http://localhost:8081/v1/rag/search -H 'X-Tenant-Slug: acme' \
 
     <article class="test" data-id="L3">
       <div class="test-top"><span class="tid">L3</span><span class="tname">Same-language retrieval did not regress</span><input class="chk" type="checkbox" aria-label="L3 passed"></div>
+      <div class="cli"># backend: rank is not exposed in the UI, so read it from the search endpoint
+curl -s -X POST http://localhost:8081/v1/rag/search -H 'X-Tenant-Slug: acme' \
+  -H 'Content-Type: application/json' -d '{"query":"D-2026-001","k":3}'
+# browser: ask the panel for the same decision by number and check what it cites
+#   ما هو قرار المجلس رقم D-2026-001؟</div>
       <div class="meta">
         <div><p class="lbl pass">Expect</p><p>Ordinary Arabic questions still return the right Arabic records first. Weighting the semantic ranking at <code>rag_knn_weight</code> 1.5 must not demote exact lexical matches — BM25 is still what finds a decision number or a person's name.</p></div>
         <div><p class="lbl fail">Fails if</p><p>Searching a decision number stops returning that decision.</p></div>
@@ -1555,8 +1560,66 @@ curl -s -X POST http://localhost:8081/v1/rag/search -H 'X-Tenant-Slug: acme' \
     </article>
   </section>
 
+  <!-- ══ O ══════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">O</span><h2>Iconography</h2></div>
+    <p class="sec-note">The sidebar used to push SVG strings through <code>bypassSecurityTrustHtml</code>. It no longer does — every glyph is drawn by <code>&lt;ng-icon&gt;</code> from <code>@ng-icons/lucide</code>, which the Angular 22 upgrade unblocked. Two things can go wrong here and neither announces itself: a glyph silently renders blank, or the sanitizer bypass creeps back in. These are browser checks; the last two are greps.</p>
+
+    <article class="test" data-id="O1">
+      <div class="test-top"><span class="tid">O1</span><span class="tname">Every sidebar entry draws a glyph</span><input class="chk" type="checkbox" aria-label="O1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Open <code>localhost:4200</code> and expand every group. All <span class="num">42</span> icon fields — nav items plus group headers, <span class="num">35</span> distinct Lucide glyphs — render a drawing. Each one is recognisable for what it labels: a calendar on Meetings, a list on Agenda Items.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any row shows a blank space, a broken-image box, or the same fallback glyph repeated. A name that is not a registered Lucide export renders <b>nothing</b> and throws no error — which is exactly why this is a visual check and not a unit test.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="O2">
+      <div class="test-top"><span class="tid">O2</span><span class="tname">Icons are real SVG, not injected markup</span><input class="chk" type="checkbox" aria-label="O2 passed"></div>
+      <div class="cli"># in DevTools, on any sidebar row
+document.querySelectorAll('app-sidebar ng-icon svg').length</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A non-zero count, and each <code>&lt;ng-icon&gt;</code> holds a real <code>&lt;svg&gt;</code> element that Angular created. Inspect one: it is in the DOM as structure, with no <code>innerHTML</code> assignment behind it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Zero, or the glyph is a string of markup written into an element. That would mean the old path survived somewhere.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="O3">
+      <div class="test-top"><span class="tid">O3</span><span class="tname">The sanitizer bypass is gone from the codebase</span><input class="chk" type="checkbox" aria-label="O3 passed"></div>
+      <div class="cli">grep -rn "bypassSecurityTrustHtml" boardhub-ui/src/ | grep -v "^\s*[/*]" </div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>No live call sites — only the two comments that record why it is absent, in <code>sidebar.component.ts</code> and <code>icon.component.ts</code>. Nothing is injected as HTML any more, so nothing has to be trusted.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any executable use comes back. The old safety rested on “these strings are ours”, which holds only as long as everyone remembers it — that is the standing exception this removed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="O4">
+      <div class="test-top"><span class="tid">O4</span><span class="tname">app-icon still speaks in meanings, not glyph names</span><input class="chk" type="checkbox" aria-label="O4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Templates still ask for what a thing <em>is</em> — <code>&lt;app-icon name="notes"&gt;</code>, not <code>lucideFileText</code>. Twelve semantic names across thirteen call sites, unchanged by the migration; one map in <code>icon.component.ts</code> turns each into a glyph.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A Lucide identifier appears in any template outside <code>icon.component.ts</code>. The glyph must be swappable without touching a call site — that is the whole point of the facade.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="O5">
+      <div class="test-top"><span class="tid">O5</span><span class="tname">Direction-sensitive glyphs flip in Arabic</span><input class="chk" type="checkbox" aria-label="O5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Switch to <span class="ar-inline">ع</span>. The back chevron points the way back — right in RTL, left in LTR — and group carets open toward the content. Icons sit on the inline-start edge of their row in both directions.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A chevron points out of the reading direction, or icons stay pinned left while the text moves right. Swapping icon libraries is exactly when a hardcoded <code>left</code> survives unnoticed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="O6">
+      <div class="test-top"><span class="tid">O6</span><span class="tname">The bundle did not grow</span><input class="chk" type="checkbox" aria-label="O6 passed"></div>
+      <div class="cli">cd boardhub-ui &amp;&amp; nvm use 22 &amp;&amp; ng build --configuration production</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">708</span> kB initial, unchanged from before the migration. <code>@ng-icons</code> tree-shakes to the icons actually registered, so <span class="num">1991</span> available glyphs cost the same as the <span class="num">11</span> that used to be pasted in by hand.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The bundle jumps by tens of kilobytes — that means the whole set is being pulled in, usually from importing the barrel instead of named glyphs.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; and <b>L</b>, <b>Q</b> and <b>T</b> on 1 September for cross-lingual retrieval, precedent detection and the mid-run interrupt. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; and <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
