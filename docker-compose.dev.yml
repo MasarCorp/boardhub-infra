@@ -171,6 +171,12 @@ services:
         condition: service_healthy
     environment:
       MAGALES_INTERNAL_BASE_URL: "http://api:8080/api"
+      # Service account ai-services uses to read/write domain data. No default in the
+      # application any more — it used to fall back to admin/P@ssw0rd. The dev value is
+      # the seeded admin and is explicit here so it stays dev-only; override in any
+      # shared environment.
+      MAGALES_SERVICE_USERNAME: "${MAGALES_SERVICE_USERNAME:-admin}"
+      MAGALES_SERVICE_PASSWORD: "${MAGALES_SERVICE_PASSWORD:-P@ssw0rd}"
       # Must match the api service's AI_SERVICE_HMAC_SECRET (ADR-0004).
       AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
       DEFAULT_PROVIDER: "openrouter"
