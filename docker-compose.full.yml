@@ -22,7 +22,7 @@
 #   - ui       (4200 → 80)   Angular UI served by nginx
 # ────────────────────────────────────────────────────────────
 
-name: magales-dev
+name: boardhub
 
 services:
   postgres:
