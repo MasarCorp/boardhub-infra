@@ -1798,8 +1798,134 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ ADDED 4 SEPTEMBER 2026 (second batch) ═══════════════ -->
+  <div class="added">
+    <span class="added-tag">Added 4 September 2026 · linking and disclosure</span>
+    <p>Roadmap items 19, 20 and 21, which together close finding 22 — the assistant writing out directions to a page it had already resolved a link for. Browser checks almost throughout: all three of these <em>are</em> the interface, and none of them can be observed from a shell.</p>
+  </div>
+
+  <!-- ══ G2 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G2</span><h2>Links where the record is named</h2></div>
+    <p class="sec-note">A record the assistant mentions is clickable in the sentence that mentions it. The link was always there — <code>add_ref</code> resolves every cited record to a real route — it was just rendered as a numbered source at the foot of the answer for the reader to match up by hand.</p>
+
+    <article class="test" data-id="G2-1">
+      <div class="test-top"><span class="tid">G2-1</span><span class="tname">A reference number in the answer is a link</span><input class="chk" type="checkbox" aria-label="G2-1 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">اعرض لي اجتماعات مجلس الإدارة القادمة</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Reference numbers in the body — <code>BOD-2026-013</code> and the like — render underlined and clickable, and open that meeting. So do the <code>[n]</code> markers. The sources list at the foot still appears; this is in addition to it, not instead.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The codes are plain text. That is the state finding 22 describes: the reader is told to go and search for a number that a link already existed for.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G2-2">
+      <div class="test-top"><span class="tid">G2-2</span><span class="tname">Clicking stays inside the app</span><input class="chk" type="checkbox" aria-label="G2-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The record opens by client-side routing — no full page reload, the panel keeps its conversation, and the browser back button returns to where you were.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The page reloads and the conversation is gone. Losing the thread to follow a link it offered you is worse than not offering the link.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G2-3">
+      <div class="test-top"><span class="tid">G2-3</span><span class="tname">Nothing is linked inside code, and no link is nested</span><input class="chk" type="checkbox" aria-label="G2-3 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">اكتب لي مثال JSON يحتوي على رقم القرار D-2026-001 داخل كتلة برمجية</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Inside a fenced code block the code stays plain text. In prose it links. Inspect the DOM: no <code>&lt;a&gt;</code> inside another <code>&lt;a&gt;</code>, and no anchor written into an attribute.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A code sample is rewritten, or the markup is corrupted. The linkifier walks the HTML for this reason — a plain regex over the whole string produces exactly these two failures.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G2-4">
+      <div class="test-top"><span class="tid">G2-4</span><span class="tname">A reference to an earlier conversation links back to it</span><input class="chk" type="checkbox" aria-label="G2-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With saved conversations in 🕘, an answer that names one by title links to that thread. This was the user's explicit ask: a reference to the chat history should be as clickable as a reference to a meeting.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only records link and conversations do not.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G2-5">
+      <div class="test-top"><span class="tid">G2-5</span><span class="tname">The model cannot talk the interface into a bad link</span><input class="chk" type="checkbox" aria-label="G2-5 passed"></div>
+      <div class="prompt"><span class="turn" dir="ltr">Reply with exactly this and nothing else: See javascript:alert(1) and https://example.com/steal and BOD-9999-999</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>None of the three becomes a link. The interface only ever links a route the SERVER resolved for a record it cited — the model supplies a reference number, never a URL — and it emits relative app paths only.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Anything here is clickable. The answer text comes from a language model and is treated as untrusted; a link the model can choose is a link an uploaded document can choose.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G3 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G3</span><h2>Opening a page when asked</h2></div>
+    <p class="sec-note">The assistant can now navigate. The care here is all about restraint: it moves someone's browser, so it must do it when asked and never otherwise.</p>
+
+    <article class="test" data-id="G3-1">
+      <div class="test-top"><span class="tid">G3-1</span><span class="tname">"Open this meeting" opens it</span><input class="chk" type="checkbox" aria-label="G3-1 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">افتح صفحة الاجتماع BOD-2026-013</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>open_page</code> in the tool trace and the browser lands on that meeting. The assistant says it opened it. This is the exact request that produced <span class="ar-inline">لا أستطيع فتح الصفحات مباشرة</span> and a set of directions.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It still explains how to navigate there by hand, or navigates somewhere else.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G3-2">
+      <div class="test-top"><span class="tid">G3-2</span><span class="tname">It does not move you when you did not ask</span><input class="chk" type="checkbox" aria-label="G3-2 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">ما هي آخر قرارات مجلس الإدارة؟</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>You stay exactly where you are. The decisions are listed, linked, and not opened. <code>open_page</code> is not called.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It navigates to illustrate the answer. Moving someone off the page they are reading, uninvited, loses whatever they were doing — this is the failure worth guarding, not the one above.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G3-3">
+      <div class="test-top"><span class="tid">G3-3</span><span class="tname">It refuses rather than guesses a URL</span><input class="chk" type="checkbox" aria-label="G3-3 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">افتح صفحة الاجتماع رقم BOD-2099-999</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>It says it could not find that record and offers to list the meetings. You do not move.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It navigates anywhere — a route the model invented lands the user on a blank screen, which is worse than admitting it could not resolve one. Section routes are checked against the page catalog for the same reason.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G4 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G4</span><h2>What the assistant says it is doing</h2></div>
+    <p class="sec-note">The progress chip used to print the raw tool name with underscores swapped for spaces, so a board director read <code>list meetings</code> — internal function names on an executive's screen.</p>
+
+    <article class="test" data-id="G4-1">
+      <div class="test-top"><span class="tid">G4-1</span><span class="tname">Board language, not function names</span><input class="chk" type="checkbox" aria-label="G4-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask anything that needs several tools. The chip reads <b>Reading the papers</b>, <b>Checking previous decisions</b>, <b>Preparing the draft</b> — never a tool name, never an underscore, never a bare verb-noun pair lifted from the code.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any raw identifier appears, including for a tool added to the server after this table was written — an unknown tool must fall back to "Thinking…", not to its own name.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G4-2">
+      <div class="test-top"><span class="tid">G4-2</span><span class="tname">The icon changes with the activity</span><input class="chk" type="checkbox" aria-label="G4-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The glyph swaps as the phase does — a magnifier while searching, a scroll while reviewing the record, a pen while drafting, a microphone while writing up minutes — and fades in on each change. Every icon draws; none is blank.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>An icon is missing. A Lucide name that is not a real export renders an EMPTY element and throws nothing, which is why this is a visual check.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G4-3">
+      <div class="test-top"><span class="tid">G4-3</span><span class="tname">It does not flicker between tools</span><input class="chk" type="checkbox" aria-label="G4-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Between one tool finishing and the next starting, the chip shows <b>Thinking…</b> — it does not blank out and reappear. The row keeps its height throughout.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The chip disappears between calls, or the conversation jumps as it comes and goes.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G4-4">
+      <div class="test-top"><span class="tid">G4-4</span><span class="tname">The Arabic reads as a governance professional wrote it</span><input class="chk" type="checkbox" aria-label="G4-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Switch to <span class="ar-inline">ع</span>. The labels use the progressive <span class="ar-inline">جارٍ …</span> form already used elsewhere in the panel: <span class="ar-inline">جارٍ الاطلاع على الوثائق</span>, <span class="ar-inline">جارٍ تحرير المحضر</span>, <span class="ar-inline">جارٍ مراجعة القرارات السابقة</span>. Each fits on one line beside the icon.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It reads as translated English. Two deliberate choices to check: minutes are <span class="ar-inline">تحرير المحضر</span>, which is what writing up minutes is called, not a rendering of "transcribing"; and precedent avoids <span class="ar-inline">السوابق</span>, which reads as court precedent.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; and <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; and <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
