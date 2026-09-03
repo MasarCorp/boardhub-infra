@@ -1618,8 +1618,188 @@ document.querySelectorAll('app-sidebar ng-icon svg').length</div>
     </article>
   </section>
 
+  <!-- ══ ADDED 4 SEPTEMBER 2026 ═══════════════ -->
+  <div class="added">
+    <span class="added-tag">Added 4 September 2026</span>
+    <p>Roadmap item 9's second half — the draft the assistant and the user write to at the same time — plus findings 5, 7, 9 and the page catalog. <b>Y</b> is mostly a browser section because co-editing only means anything with two writers; the backend calls are there for the parts the panel gives you no way to reach, like proving the server refused a write. <b>H</b> and <b>J</b> are backend-first for the opposite reason: provenance and a prompt anchor leave no visible trace in the UI.</p>
+  </div>
+
+  <!-- ══ Y ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Y</span><h2>The co-edited draft</h2></div>
+    <p class="sec-note">The assistant drafts a decision into a form while it is still talking, and the user can correct a field without waiting for it to finish. The rule that makes this safe in a governance tool is <b>the human's edit wins</b>: once a person has written a field, the model is refused it. <b>Y4</b> is the check that matters — the rest is plumbing.</p>
+
+    <article class="test" data-id="Y1">
+      <div class="test-top"><span class="tid">Y1</span><span class="tname">The form fills itself in while the answer is still streaming</span><input class="chk" type="checkbox" aria-label="Y1 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">جهّز مسودة قرار بخصوص اعتماد الميزانية التشغيلية للسنة القادمة</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A <b>Decision draft</b> panel appears above the conversation with a <span class="ar-inline">live</span> badge, and fields land one at a time as the assistant works them out — not all at once at the end. <code>draft_decision</code> is in the tool trace.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The draft only appears once the answer finishes. That is the old behaviour the whole item exists to replace: a form you cannot touch until there is nothing left to change.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Y2">
+      <div class="test-top"><span class="tid">Y2</span><span class="tname">Editing a field sends it into the running agent</span><input class="chk" type="checkbox" aria-label="Y2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>While the run is live, change the title in the form and tab out. The network tab shows a <code>POST /api/ai/assist/agent/state</code> returning <code>{"accepted": true, ...}</code> with a <code>version</code>. No new user message appears in the transcript — this is not a chat turn.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>accepted:false</code> while the run is visibly still going, or the edit is posted as an ordinary message.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Y3">
+      <div class="test-top"><span class="tid">Y3</span><span class="tname">The assistant can read what you typed</span><input class="chk" type="checkbox" aria-label="Y3 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">ماذا يوجد الآن في مسودة القرار؟</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>read_decision_draft</code> in the trace, and the answer quotes <b>your</b> wording for the field you edited, marked as edited by you. Your edit never travelled as a message, so this is the only route by which it could know.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It reports the value it wrote originally, or says the form is empty.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Y4">
+      <div class="test-top"><span class="tid">Y4</span><span class="tname">Your edit survives the assistant redrafting</span><input class="chk" type="checkbox" aria-label="Y4 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">أعد صياغة عنوان القرار ليكون أكثر رسمية</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><b>The field keeps your text.</b> The assistant says it left your wording alone rather than claiming it changed it. Ask it to rewrite the rationale instead and that field <em>does</em> change — the refusal is per field, not a freeze on the whole form.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Your title is replaced. That is the failure the rule exists to prevent: a redraft silently reverting a correction the board secretary made seconds earlier, with nothing in the transcript showing it happened. Also fails if the assistant claims it rewrote a field it did not.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Y5">
+      <div class="test-top"><span class="tid">Y5</span><span class="tname">The server refuses the write, not just the UI</span><input class="chk" type="checkbox" aria-label="Y5 passed"></div>
+      <div class="cli"># the panel gives you no way to see a refusal, so read it from the API.
+# run_id comes from the STATE_SNAPSHOT frame on the open stream.
+curl -s -X POST http://localhost:8080/api/ai/assist/agent/state \
+  -H 'X-Tenant-Slug: acme' -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"run_id":"&lt;runId&gt;","ops":[{"op":"replace","path":"/decisionDraft/title","value":"typed by a human"}]}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>accepted: true</code>, an incremented <code>version</code>, and the op echoed under <code>applied</code>. The path is now the human's: every later agent write to it comes back under <code>refused</code> in the tool result, and the stored value does not move.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A later agent write changes it anyway. Enforcement has to be in the document, not in the panel — anything the browser guards, another client can skip.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Y6">
+      <div class="test-top"><span class="tid">Y6</span><span class="tname">A malformed patch is rejected, and rejected cleanly</span><input class="chk" type="checkbox" aria-label="Y6 passed"></div>
+      <div class="cli">curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8081/v1/agent/state \
+  -H 'Content-Type: application/json' \
+  -d '{"run_id":"&lt;runId&gt;","ops":[{"op":"move","path":"/a","from":"/b"}]}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><span class="num">400</span> with a message naming the unsupported op. Only <code>add</code>, <code>replace</code> and <code>remove</code> are accepted. A patch containing one bad op writes <b>none</b> of its ops — validation runs over the whole patch first.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It returns 200, or a half-applied patch leaves the draft with some fields written and others not.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Y7">
+      <div class="test-top"><span class="tid">Y7</span><span class="tname">The draft closes with the run</span><input class="chk" type="checkbox" aria-label="Y7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>After <code>RUN_FINISHED</code> the fields go read-only and the <span class="ar-inline">live</span> badge disappears. Patching that run id now returns <code>accepted:false</code> with <code>no open run with that id</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The inputs stay editable after the run ends — they would silently discard whatever is typed into them, which is worse than being visibly closed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="Y8">
+      <div class="test-top"><span class="tid">Y8</span><span class="tname">Known limit — one replica, and no resync</span><input class="chk" type="checkbox" aria-label="Y8 passed"></div>
+      <div class="gap"><b>Expected limits, not bugs.</b> The document lives in the memory of the worker running the loop, so a patch that reaches another pod finds nothing and returns <code>accepted:false</code>; the UI stops offering the edit rather than dropping it silently. Same root cause as the parked-run registry — <b>finding 20</b>, and still the thing to fix before scaling ai-services out. Separately, if a <code>STATE_DELTA</code> arrives whose version is not exactly one past the last, the panel marks the draft stale and stops applying: there is no resync endpoint yet, and a form that quietly disagrees with the agent is worse than one that admits it. Tick this once you have seen both behave.</div>
+    </article>
+  </section>
+
+  <!-- ══ H ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">H</span><h2>Who set this reminder</h2></div>
+    <p class="sec-note">Backend-first, because provenance leaves no mark on the screen. <code>source</code> used to be assigned by comparing the owner to the caller, which answers "is this for someone else" — delegation, not provenance — and was wrong in both directions.</p>
+
+    <article class="test" data-id="H1">
+      <div class="test-top"><span class="tid">H1</span><span class="tname">A reminder the assistant sets is recorded as the assistant's</span><input class="chk" type="checkbox" aria-label="H1 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">ذكّرني بمراجعة محضر الاجتماع بعد ثلاثة أيام</span><button class="copy" type="button">Copy</button></div>
+      <div class="cli">curl -s "http://localhost:8080/api/reminders" -H 'X-Tenant-Slug: acme' \
+  -H "Authorization: Bearer $TOKEN" | jq '.[0] | {message, source, createdBy, ownerId}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>source</code> is <span class="ar-inline">AGENT</span>. Before this change it read <span class="ar-inline">USER</span>: the tool authenticates as the service account, so a reminder it set for that same account looked self-directed to the old inference — which is exactly the case the 30 August verification exercised.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It still says USER, or the reminder does not appear at all.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="H2">
+      <div class="test-top"><span class="tid">H2</span><span class="tname">A person setting one for a colleague is still a person</span><input class="chk" type="checkbox" aria-label="H2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>As an admin, create a reminder owned by <b>test.member</b> without declaring a source. It records <span class="ar-inline">USER</span> with <code>createdBy</code> set to the admin. The old inference called this AGENT purely because the owner differed from the caller.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It records AGENT. Nobody automated anything here.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="H3">
+      <div class="test-top"><span class="tid">H3</span><span class="tname">An ordinary user cannot claim to be the assistant</span><input class="chk" type="checkbox" aria-label="H3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>As <b>test.member</b>, create a reminder passing <code>"source":"AGENT"</code>. It is recorded <span class="ar-inline">USER</span> — the declared value is honoured only for privileged callers, the same trust boundary as <code>ownerId</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The declared value is taken. Provenance a user can forge records nothing.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="H4">
+      <div class="test-top"><span class="tid">H4</span><span class="tname">A misdirected reminder can be taken back</span><input class="chk" type="checkbox" aria-label="H4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>As the privileged caller who created a reminder for someone else, <code>DELETE /api/reminders/{id}</code> returns <span class="num">204</span>. Before, this was 403 and the row could only be cleared by its owner or in SQL.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>403. A reminder sent to the wrong person with no way to withdraw it is the finding.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="H5">
+      <div class="test-top"><span class="tid">H5</span><span class="tname">…and only taken back, not read</span><input class="chk" type="checkbox" aria-label="H5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>That same admin still gets <span class="num">403</span> reading, snoozing or completing that reminder, and it never appears in their list. The delete returns 204 with no body. A second admin who did <b>not</b> create it gets 403 on delete too.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any cross-owner read succeeds. Withdrawing a misdirected reminder does not require seeing what it says, and not seeing it is the entire point of the owner check.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ J ══════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">J</span><h2>Dates and pages the assistant gets right</h2></div>
+    <p class="sec-note">Two quiet correctness fixes. Neither announces itself: a wrong deadline looks like a deadline, and a page the assistant does not know about still answers, just about the wrong scope.</p>
+
+    <article class="test" data-id="J1">
+      <div class="test-top"><span class="tid">J1</span><span class="tname">A deadline is counted from the meeting, not from today</span><input class="chk" type="checkbox" aria-label="J1 passed"></div>
+      <div class="cli"># generate notes for a meeting held well in the PAST, with a relative deadline in the transcript
+curl -s -X POST http://localhost:8081/v1/meeting-notes/generate -H 'X-Tenant-Slug: acme' \
+  -H 'Content-Type: application/json' \
+  -d '{"meeting_id":"&lt;a meeting held months ago&gt;","language":"ar",
+       "transcript":"اتفق المجلس على أن يقدّم المدير المالي التقرير خلال أسبوعين."}'</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>actionItems[].due</code> is two weeks after the <b>meeting's</b> date, which for an old meeting is in the past. The prompt used to label today as "the meeting day", so every relative deadline moved forward by however long the minutes took to write.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The due date is two weeks from today. Also fails if a correct past date is suppressed — the old prompt forbade dates earlier than today, which was wrong for exactly this case.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="J2">
+      <div class="test-top"><span class="tid">J2</span><span class="tname">No meeting date is said to be no meeting date</span><input class="chk" type="checkbox" aria-label="J2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Generate from a bare transcript with no <code>meeting_id</code>. Deadlines anchor to a date stated in the transcript if there is one; otherwise today is used and described as the drafting day, not the meeting day.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Today is presented to the model as when the meeting happened. It is a guess, and it should not be dressed as a fact.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="J3">
+      <div class="test-top"><span class="tid">J3</span><span class="tname">The assistant knows which page you are on — all of them</span><input class="chk" type="checkbox" aria-label="J3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Open <code>/reminders</code>, then <code>/surveys</code>, <code>/appointments</code>, <code>/daily-agenda</code>, <code>/annual-agenda</code> and <code>/security</code>. On each, the panel's context chip <b>names that page</b>. All six were missing from the catalog, so all six used to read "across the governance record".</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of them falls back to the tenant-wide chip. Nothing errors when this is wrong — the answer is just scoped to the whole tenant instead of the page.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="J4">
+      <div class="test-top"><span class="tid">J4</span><span class="tname">The catalog test actually runs</span><input class="chk" type="checkbox" aria-label="J4 passed"></div>
+      <div class="cli">cd boardhub-ai-services &amp;&amp; ./.venv/bin/python -m pytest -q tests/test_page_catalog.py
+# and prove it cannot pass by being switched off:
+cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/test_page_catalog.py</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Passing with the sibling <code>boardhub-ui</code> checkout present. Without it, a visible <b>skip</b> — and a <b>failure</b> when <code>REQUIRE_UI_CHECKOUT=1</code>. Both tests used to open with a bare <code>return</code>, which reads as a pass, and CI never checks the UI out: they reported green while asserting nothing, which is how six routes drifted out unnoticed.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>An absent UI checkout still reports a silent pass. A test that cannot fail is not covering anything.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; and <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; and <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
