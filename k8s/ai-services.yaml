@@ -76,6 +76,16 @@ spec:
             - name: AI_SERVICE_HMAC_SECRET
               valueFrom:
                 secretKeyRef: { name: boardhub-secrets, key: AI_SERVICE_HMAC_SECRET }
+            # Service account for the Magales domain APIs. Required: the application no
+            # longer falls back to admin/P@ssw0rd, so an unset value leaves ai-services
+            # unauthenticated (and it logs an error saying so) rather than quietly
+            # operating as SUPER_ADMIN.
+            - name: MAGALES_SERVICE_USERNAME
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: MAGALES_SERVICE_USERNAME }
+            - name: MAGALES_SERVICE_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: boardhub-secrets, key: MAGALES_SERVICE_PASSWORD }
             - name: OPENROUTER_API_KEY
               valueFrom:
                 secretKeyRef: { name: boardhub-secrets, key: OPENROUTER_API_KEY }
