@@ -1,0 +1,432 @@
+<title>سجل قدرات الذكاء الاصطناعي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    --ground: #F5F7FA;
+    --paper: #FFFFFF;
+    --ink: #0A1F44;
+    --ink-2: #33415C;
+    --muted: #5F6B80;
+    --line: #DDE3EC;
+    --accent: #0E7C7B;
+    --accent-soft: #E3F1F0;
+    --new: #9A6608;
+    --new-soft: #FBF3E2;
+    --shadow: 0 1px 2px rgba(10,31,68,.05), 0 8px 24px rgba(10,31,68,.06);
+
+    --f-ar: "IBM Plex Sans Arabic", "Geeza Pro", "Segoe UI", Tahoma, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0A1120;
+      --paper: #121C2E;
+      --ink: #E8EDF5;
+      --ink-2: #C3CDDC;
+      --muted: #8B99AD;
+      --line: #26344B;
+      --accent: #3FB3AE;
+      --accent-soft: #14312F;
+      --new: #D19A3A;
+      --new-soft: #2A2113;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0A1120;
+    --paper: #121C2E;
+    --ink: #E8EDF5;
+    --ink-2: #C3CDDC;
+    --muted: #8B99AD;
+    --line: #26344B;
+    --accent: #3FB3AE;
+    --accent-soft: #14312F;
+    --new: #D19A3A;
+    --new-soft: #2A2113;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink-2);
+    font-family: var(--f-ar);
+    font-size: 16.5px;
+    line-height: 1.85;
+    margin: 0;
+    padding: 0 20px 96px;
+    direction: rtl;
+    text-align: right;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 780px; margin: 0 auto; }
+
+  .masthead { padding: 60px 0 30px; border-bottom: 2px solid var(--ink); }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: .12em;
+    color: var(--accent);
+    margin: 0 0 14px;
+    direction: ltr; text-align: right;
+  }
+  h1 {
+    font-weight: 700;
+    font-size: clamp(28px, 5vw, 40px);
+    line-height: 1.35;
+    color: var(--ink);
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .standfirst { font-size: 17px; color: var(--muted); max-width: 58ch; margin: 0; }
+
+  .lede {
+    margin: 26px 0 0;
+    padding: 16px 18px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-inline-start: 3px solid var(--accent);
+    border-radius: 10px;
+    font-size: 15px;
+    color: var(--ink-2);
+  }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  section { margin-top: 54px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .sec-tag {
+    font-family: var(--f-mono); font-size: 12px; font-weight: 500;
+    color: var(--paper); background: var(--ink);
+    padding: 3px 8px; border-radius: 4px; flex: none;
+  }
+  h2 { font-weight: 700; font-size: 23px; color: var(--ink); margin: 0; }
+  .sec-note { font-size: 15px; color: var(--muted); margin: 0 0 22px; max-width: 60ch; }
+
+  ol.caps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px;
+            background: var(--line); border: 1px solid var(--line); border-radius: 12px;
+            overflow: hidden; box-shadow: var(--shadow); }
+  ol.caps > li { background: var(--paper); padding: 16px 18px; display: grid;
+                 grid-template-columns: 2.2rem 1fr; column-gap: 14px; row-gap: 4px; }
+  .num {
+    font-family: var(--f-mono); font-size: 12.5px; font-weight: 500;
+    color: var(--accent); padding-top: 5px;
+    font-variant-numeric: tabular-nums; direction: ltr;
+  }
+  .cap-title { grid-column: 2; font-size: 16px; font-weight: 600; color: var(--ink); line-height: 1.6; }
+  .cap-body { grid-column: 2; font-size: 15px; color: var(--ink-2); margin: 0; }
+  .cap-why { grid-column: 2; font-size: 14px; color: var(--muted); margin: 2px 0 0; }
+  .cap-why b { color: var(--accent); font-weight: 600; }
+
+  .tag-new {
+    display: inline-block;
+    margin-inline-start: 8px;
+    font-family: var(--f-ar); font-size: 11px; font-weight: 600;
+    color: var(--new); background: var(--new-soft);
+    border: 1px solid currentColor; border-radius: 999px;
+    padding: 0 9px;
+  }
+
+  dl.gloss { margin: 0; display: flex; flex-direction: column; gap: 18px; }
+  dl.gloss > div {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 10px; padding: 15px 18px;
+  }
+  dt { font-size: 17px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  dt .also {
+    font-size: 12.5px; font-weight: 400;
+    color: var(--muted); margin-inline-start: 8px;
+  }
+  dd { margin: 0; font-size: 15px; color: var(--ink-2); }
+  dd + dd { margin-top: 8px; color: var(--muted); font-size: 14px; }
+  dd b { color: var(--ink); font-weight: 600; }
+  .ltr { direction: ltr; display: inline-block; unicode-bidi: isolate; }
+
+  footer {
+    margin-top: 60px; padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 13.5px; color: var(--muted);
+  }
+  footer p { margin: 0 0 8px; max-width: 60ch; }
+
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 560px) {
+    ol.caps > li { grid-template-columns: 1.8rem 1fr; column-gap: 10px; padding: 14px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">بوردهَب · مرجع الأعمال</p>
+    <h1>ماذا يفعل المساعد الذكي، بلغة مفهومة</h1>
+    <p class="standfirst">سجل يوضّح كل قدرات الذكاء الاصطناعي في المنصة، مكتوب لمن يستخدمها لا لمن بناها، يليه تعريف للمصطلحات التي يقوم عليها.</p>
+
+    <div class="lede">
+      <b>مبدأ واحد يسري على كل ما يلي:</b> المساعد يجيب من <b>سجلات منشأتك أنت</b> — محاضرها وقراراتها وبنود أعمالها ومهامها ومستنداتها. فهو لا يجيب من معرفة عامة عن المجالس، ولن يختلق رقماً لا يجده. وكل إجابة تشير إلى السجل الذي جاءت منه، حتى يبقى التحقق من أي ادعاء ممكناً دائماً.
+    </div>
+  </header>
+
+  <!-- ══ أ ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">أ</span><h2>أن تسأل سجلاتك سؤالاً</h2></div>
+    <p class="sec-note">الاستخدام اليومي: بدلاً من فتح خمس شاشات لتجميع إجابة، تطلبها.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">01</span>
+        <span class="cap-title">اسأل بكلماتك أنت</span>
+        <p class="cap-body">اسأل بالعربية أو بالإنجليزية كما تسأل زميلاً — «كم بند أعمال ما زال معلقاً؟»، «ماذا قررت لجنة المراجعة بشأن عقود الموردين؟» دون صيغ بحث ولا مرشّحات تضبطها.</p>
+      </li>
+      <li>
+        <span class="num">02</span>
+        <span class="cap-title">كل إجابة تُظهر مصدرها</span>
+        <p class="cap-body">تحمل الإجابات مراجع مرقّمة تعود إلى المحضر أو القرار أو المستند الذي جاءت منه، وكل مرجع رابط يفتح السجل نفسه.</p>
+        <p class="cap-why"><b>لماذا يهم:</b> ادّعاء لا يستطيع أحد تتبّعه ليس دليلاً. وفي سياق الحوكمة، الإسناد هو جوهر الأمر.</p>
+      </li>
+      <li>
+        <span class="num">03</span>
+        <span class="cap-title">بحث واحد يغطي اللغتين<span class="tag-new">جديد</span></span>
+        <p class="cap-body">سؤال بالعربية يجد الإجابة داخل ورقة مكتوبة بالإنجليزية، وسؤال بالإنجليزية يجدها داخل محضر عربي. لا تحتاج أن تسأل مرتين ولا أن تترجم بنفسك.</p>
+        <p class="cap-why"><b>لماذا يهم:</b> أرشيف المجالس ثنائي اللغة فعلياً، والبحث بلغة واحدة يعني أن نصف السجل غائب عن كل استعلام.</p>
+      </li>
+      <li>
+        <span class="num">04</span>
+        <span class="cap-title">يعرف الشاشة التي تقف عليها</span>
+        <p class="cap-body">اسأل «لخّص هذا» وأنت داخل اجتماع فيلخّص ذلك الاجتماع. الصفحة التي تنظر إليها تصبح هي السياق، ويمكنك إيقاف ذلك لسؤال واحد إن أردت إجابة على مستوى المنصة كلها.</p>
+      </li>
+      <li>
+        <span class="num">05</span>
+        <span class="cap-title">يتذكّر مجرى الحديث</span>
+        <p class="cap-body">أسئلة المتابعة تعمل — «ومن المسؤول عن ذلك؟»، «وماذا عن الربع الماضي؟» — عبر نحو اثنتي عشرة مبادلة، فلا تعيد شرح السياق في كل مرة.</p>
+      </li>
+      <li>
+        <span class="num">06</span>
+        <span class="cap-title">لن يختلق رقماً</span>
+        <p class="cap-body">إذا لم يكن الرقم أو الاسم أو التاريخ موجوداً في السجلات، يقول المساعد ذلك بدلاً من إنتاج بديل يبدو معقولاً.</p>
+        <p class="cap-why"><b>لماذا يهم:</b> أداة حوكمة تختلق رقماً أحياناً أسوأ من عدم وجود أداة، لأنك ستضطر للتحقق من كل ما تقوله.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ ب ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">ب</span><h2>إدارة اجتماع وتحرير محضره</h2></div>
+    <p class="sec-note">من التسجيل في القاعة إلى محضر يصلح فعلاً للمراجعة.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">07</span>
+        <span class="cap-title">سجّل الاجتماع، واحصل على مسودة محضر</span>
+        <p class="cap-body">يُفرَّغ الكلام العربي نصياً ثم يُحوَّل إلى مسودة محضر منظّمة: ملخص تنفيذي، وما جرى تحت كل بند، والقرارات المتخذة، وقائمة إجراءات بمسؤوليها ومواعيدها حيث نصّت المناقشة عليها صراحة.</p>
+      </li>
+      <li>
+        <span class="num">08</span>
+        <span class="cap-title">الحضور من السجل، لا من التخمين</span>
+        <p class="cap-body">يُبنى قسم الحضور من الأشخاص المسجَّلين فعلاً كحاضرين لذلك الاجتماع، مع صفة التصويت — لا من أسماء استنتجها النظام من سياق الحديث.</p>
+      </li>
+      <li>
+        <span class="num">09</span>
+        <span class="cap-title">ما لا يُنسب صراحةً يبقى دون نسبة</span>
+        <p class="cap-body">التسجيل لا يحمل علامات تدل على المتحدث. لذلك لا يذكر المساعد اسم شخص إلا حين تجعله المناقشة صريحاً — يُنادى باسمه، أو يعرّف بنفسه، أو يُسجَّل مقترحاً أو مؤيداً. وفيما عدا ذلك يُترك الإجراء بلا مسؤول لتسنده أنت.</p>
+        <p class="cap-why"><b>لماذا يهم:</b> إجراء بلا مسؤول ثغرة صغيرة تُغلق في دقيقة، أما اسم خاطئ بثقة في محضر مجلس موقّع فمسألة من نوع آخر.</p>
+      </li>
+      <li>
+        <span class="num">10</span>
+        <span class="cap-title">صياغة أوراق بصيغة Word أو PDF</span>
+        <p class="cap-body">اطلب مذكرة أو تقريراً أو ورقة إحاطة، فيكتبها المساعد ويحفظها منسوبة إلى الاجتماع الذي تخصّه، جاهزة للفتح من المكتبة.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ ج ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">ج</span><h2>الوصول إلى قرار</h2></div>
+    <p class="sec-note">أنفع ما يقدّمه المساعد ليس صياغة القرار، بل تذكُّر ما سبق أن قاله المجلس.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">11</span>
+        <span class="cap-title">هل سبق للمجلس أن قرر هذا؟<span class="tag-new">جديد</span></span>
+        <p class="cap-body">اسأل إن كان الموضوع قد طُرح من قبل، فيبحث المساعد في القرارات والمحاضر السابقة ويعرض ما تقرَّر ومتى، مع إسناد كل حالة. ويقدّمها بوصفها مسائل ذات صلة لتزنها أنت — لا ليخبرك أن المسألة مغلقة.</p>
+        <p class="cap-why"><b>لماذا يهم:</b> تعيد المجالس فتح مسائل محسومة لأن سياقها يكون قد غاب حين يعود السؤال. هذا يضع السجل السابق أمام السائل، ولأن المجالس تعيد الفتح أحياناً عن قصد، يبقى الحكم لك.</p>
+      </li>
+      <li>
+        <span class="num">12</span>
+        <span class="cap-title">صياغة قرار بالمحادثة</span>
+        <p class="cap-body">قل ما تريد تقريره، فيجمع المساعد ما يحتاجه القرار — اللجنة، والرقم، والتاريخ، والتصنيف — سائلاً لا مفترضاً، ثم يحفظه. وإن لم ترغب في حفظه بعد، صاغ لك النص كاملاً لتنسخه.</p>
+      </li>
+      <li>
+        <span class="num">13</span>
+        <span class="cap-title">اختر اللجنة دون أن تفقد موضعك<span class="tag-new">جديد</span></span>
+        <p class="cap-body">حين يلزم اختيار — أي مجلس، أي اجتماع — تظهر قائمة اختيار بينما ينتظر المساعد. ونقرتك تعود إلى العمل نفسه، فيكمل من حيث توقّف بدل أن يبدأ الحديث من جديد.</p>
+        <p class="cap-why"><b>لماذا يهم:</b> كان الاختيار سابقاً ينهي المبادلة، وتبدأ إجابتك مبادلة جديدة تعيد بناء ما كان قد توصّل إليه للتو.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ د ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">د</span><h2>ضمان أن يحدث ما تقرر</h2></div>
+    <p class="sec-note">اتخاذ القرارات سهل، وضياعها أسهل. هذا هو جانب المتابعة.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">14</span>
+        <span class="cap-title">تذكيرات تضبطها أنت، أو يضبطها المساعد لك</span>
+        <p class="cap-body">قل «ذكّرني قبل اجتماع لجنة المراجعة القادم بمراجعة عقود الموردين»، فيستنتج المساعد موعد ذلك الاجتماع فعلياً ويضبط التذكير. والتذكيرات خاصة بك وحدك — لا يراها غيرك ولا يضبط أحد تذكيراً باسمك.</p>
+      </li>
+      <li>
+        <span class="num">15</span>
+        <span class="cap-title">التذكير يصل كبطاقة، لا كرقم صغير</span>
+        <p class="cap-body">حين يحين الموعد تظهر بطاقة بثلاثة خيارات: تأجيله يوماً أو ثلاثة أو أسبوعاً، أو إغلاقه، أو الحديث مع المساعد بشأنه.</p>
+        <p class="cap-why"><b>لماذا يهم:</b> الرقم الصغير على الجرس ينتظر أن يُلاحَظ، وهذا تحديداً ما لا يحتمله التذكير.</p>
+      </li>
+      <li>
+        <span class="num">16</span>
+        <span class="cap-title">تصرّف بشأن التذكير دون مغادرته</span>
+        <p class="cap-body">اختر «تحدّث عن هذا» فيفتح المساعد السجل الذي يشير إليه التذكير، ويخبرك أين وصلت المسألة الآن، ويعرض خطوات ملموسة يستطيع تنفيذها — إضافة بند، أو إنشاء مهمة، أو صياغة القرار.</p>
+      </li>
+      <li>
+        <span class="num">17</span>
+        <span class="cap-title">ما المتأخر، في لمحة</span>
+        <p class="cap-body">اسأل عمّا تأخر أو أصبح معرّضاً للخطر، فيحسبه المساعد من السجلات الحيّة — قرارات ومهام متأخرة، ونشاط موزّع على الأشهر — ويعرضه أرقاماً ورسماً بيانياً لا نصاً.</p>
+      </li>
+      <li>
+        <span class="num">18</span>
+        <span class="cap-title">المواعيد تعني ما كتبته</span>
+        <p class="cap-body">تضبط التذكيرات وتقرؤها بتوقيتك المحلي أينما كنت، بينما يظل المساعد يحسب «قبل الاجتماع القادم» وفق تقويم المنشأة.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ هـ ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">هـ</span><h2>التعامل مع المستندات</h2></div>
+    <p class="sec-note">تصل أوراق المجلس مرفقات ونسخاً ممسوحة وملفات طويلة لا يملك أحد وقتاً لقراءتها مرتين.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">19</span>
+        <span class="cap-title">اسأل مستنداً بعينه</span>
+        <p class="cap-body">وجّه المساعد إلى ورقة مرفوعة واحدة واسأل عنها وحدها — بماذا توصي، وماذا تقول عن رقم معيّن — دون أن تتسرب إجابات من بقية الأرشيف.</p>
+      </li>
+      <li>
+        <span class="num">20</span>
+        <span class="cap-title">المستندات الممسوحة تصبح قابلة للبحث</span>
+        <p class="cap-body">النسخة الممسوحة صورة، والصورة غير مرئية للبحث. يُستخرج النص من الصفحات العربية الممسوحة، فيصبح مستند قديم موقّع قابلاً للعثور عليه والاقتباس منه كأي سجل آخر.</p>
+      </li>
+      <li>
+        <span class="num">21</span>
+        <span class="cap-title">تلخيص أو ترجمة في موضعها</span>
+        <p class="cap-body">اختصر ورقة طويلة إلى ما يحتاجه عضو المجلس قبل الاجتماع، أو انقل فقرة بين العربية والإنجليزية دون مغادرة الصفحة.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ و ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">و</span><h2>أين تعمل معه</h2></div>
+    <p class="sec-note">المساعد يجاور كل شاشة، ويحفظ ما ينتجه في مكان واحد.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">22</span>
+        <span class="cap-title">مساحة واحدة لكل ما أنتجه</span>
+        <p class="cap-body">أربعة أقسام في لوحة المساعد: <b>محادثاتك</b>، و<b>محاضر الاجتماعات</b> التي أنتجها، و<b>وارد</b> بالتذكيرات المنتظرة، و<b>بحث</b> يشملها جميعاً. وفتح محضر يقرؤه داخل اللوحة نفسها، فلا تترك المحادثة لتذهب وتنظر.</p>
+      </li>
+      <li>
+        <span class="num">23</span>
+        <span class="cap-title">المحادثات تسمّي نفسها</span>
+        <p class="cap-body">تُعنون كل محادثة بموضوعها الفعلي، فيصبح السجل قائمة تُقرأ بلمحة بدل عمود من أسطر افتتاحية متطابقة.</p>
+      </li>
+      <li>
+        <span class="num">24</span>
+        <span class="cap-title">خاصة افتراضياً، ومفصولة بحسب المنشأة</span>
+        <p class="cap-body">محادثاتك ومحاضرك وتذكيراتك ملك لك، وصفة المسؤول الإداري لا تمنح الاطلاع عليها. وسجلات كل منشأة محفوظة على حدة، ولا يصل المساعد إلا إلى المنشأة التي سجّلت الدخول إليها.</p>
+        <p class="cap-why"><b>لماذا يهم:</b> ما تسأل عنه المساعد يكشف ما تعمل عليه، وهذا يستحق الحماية نفسها التي تستحقها السجلات.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ المصطلحات ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">ز</span><h2>المصطلحات، مُعرَّفة</h2></div>
+    <p class="sec-note">كلمات وردت أعلاه، أو تتردد في الحديث عن المنصة، مشروحة بلا مصطلحات تقنية.</p>
+
+    <dl class="gloss">
+      <div>
+        <dt>قاعدة المعرفة <span class="also">السجل القابل للبحث</span></dt>
+        <dd>كل ما يُسمح للمساعد بقراءته والبحث فيه نيابة عنك، محفوظاً بصورة تتيح الاستعلام بالمعنى لا بالنص الحرفي.</dd>
+        <dd><b>ماذا تضم:</b> المحاضر، والقرارات، وبنود الأعمال، والاجتماعات، والمهام، وجلسات التصويت، وطلبات التوقيع، والمجالس واللجان، ومستندات المكتبة، وأي ورقة ترفعها — لمنشأتك وحدها.</dd>
+        <dd><b>ما الذي يمكن استعلامه منها:</b> ماذا تقرَّر ومتى · ماذا تقول ورقة بعينها · ما المتأخر أو المعرَّض للخطر · من عليه ماذا · هل سبق طرح موضوع من قبل · ماذا جرى في اجتماع بعينه · ماذا يتضمن مستند ممسوح.</dd>
+      </div>
+      <div>
+        <dt>المساعد <span class="also">ويسمى أيضاً الوكيل</span></dt>
+        <dd>الجزء الذي تحادثه من المنصة. ويفترق عن مربع البحث في أنه يستطيع أن ينفّذ لا أن يجيب فقط: ينشئ مهمة، ويضيف بنداً، ويصوغ قراراً، ويحفظ مستنداً، ويضبط تذكيراً — دائماً ضمن الصلاحيات التي تملكها أنت.</dd>
+      </div>
+      <div>
+        <dt>الأداة</dt>
+        <dd>فعل محدد يستطيع المساعد القيام به — الاطلاع على اجتماع، أو سرد المهام المتأخرة، أو حفظ محضر، أو ضبط تذكير. وهو حين يجيب إنما يختار أيّها يستخدم. وقائمة الأدوات ثابتة تحددها المنصة، وهذا ما يمنعه من فعل ما لم يُبنَ لأجله.</dd>
+      </div>
+      <div>
+        <dt>الإسناد <span class="also">المرجع</span></dt>
+        <dd>الرابط المرقّم بجوار العبارة، يشير إلى السجل الذي جاءت منه. وإن خلت جملة من إسناد فهي صياغة المساعد نفسه لا اقتباس من سجلاتك.</dd>
+      </div>
+      <div>
+        <dt>البحث بالمعنى <span class="also">البحث الدلالي</span></dt>
+        <dd>العثور على سجلات تدور <b>حول</b> ما سألت عنه، حتى لو لم تستخدم أياً من كلماتك. فالبحث عن <span class="ltr">"late board resolutions"</span> يُظهر قراراً مكتوباً بصيغة «قرار متأخر عن موعد التنفيذ». ويبقى البحث بالكلمات المفتاحية مستخدماً إلى جانبه، لأنه ما يجد رقم قرار بعينه أو اسم شخص.</dd>
+      </div>
+      <div>
+        <dt>عابر للغات</dt>
+        <dd>أن يشمل البحث الواحد العربية والإنجليزية معاً، لأن السجلات مفهرسة بالمعنى لا باللغة. سؤال واحد يبحث الأرشيف كله.</dd>
+      </div>
+      <div>
+        <dt>سياق الصفحة <span class="also">النطاق</span></dt>
+        <dd>السجل المفتوح أمامك، ويعامله المساعد بوصفه المقصود بكلمة «هذا» — هذا الاجتماع، هذا القرار. ويمكنك إغلاقه لسؤال ينبغي أن ينظر في كل شيء.</dd>
+      </div>
+      <div>
+        <dt>السابقة</dt>
+        <dd>قرار سابق أو محضر له صلة بالمسألة المطروحة أمامك. ويعرض المساعد السوابق بوصفها مرشحات للموازنة، لا حكماً بأن المسألة مغلقة.</dd>
+      </div>
+      <div>
+        <dt>ضابط الأمان</dt>
+        <dd>قاعدة لا يستطيع المساعد الالتفاف عليها بالحديث — لا يذكر رقماً غير موجود في السجلات، ولا يسمّي شخصاً لم تسمّه المناقشة، ولا يقدّم مسودة كأنها معتمدة.</dd>
+      </div>
+      <div>
+        <dt>التذكير، وفرقه عن الإشعار</dt>
+        <dd><b>الإشعار</b> يبلّغ بشيء وقع فعلاً، والنظام هو من رأى أنك ينبغي أن تعلم به. أما <b>التذكير</b> فنيّة تخص المستقبل اخترتها أنت، ولا يملك تحريكها أو إلغاءها سواك. وحين يحين موعد التذكير يُنتج إشعاراً — ويبقى الاثنان منفصلين عن قصد.</dd>
+      </div>
+      <div>
+        <dt>التفريغ النصي</dt>
+        <dd>تحويل الكلام في التسجيل إلى نص. وهو يلتقط الكلمات لا قائلها، ولهذا تُعامَل نسبة الأقوال في المحاضر بهذا القدر من الحذر.</dd>
+      </div>
+      <div>
+        <dt>التعرّف الضوئي على النص <span class="also">OCR</span></dt>
+        <dd>قراءة الكلمات من صفحة ممسوحة، فيصير مستند كان مجرد صورة قابلاً للبحث والاقتباس. ومدعوم للعربية، حيث يقع معظم السجلات الموقّعة القديمة.</dd>
+      </div>
+      <div>
+        <dt>خاص بك <span class="also">مقصور على المالك</span></dt>
+        <dd>لا يراه إلا صاحبه، أياً كانت الصفة. ويسري على المحادثات ومحاضر المساعد والتذكيرات، لأنها تكشف ما يعمل عليه الشخص لا ما سجّله المجلس رسمياً.</dd>
+      </div>
+      <div>
+        <dt>الفصل بين المنشآت</dt>
+        <dd>سجلات كل منشأة محفوظة على حدة، ولا يصل أي طلب إلا إلى المنشأة التي سجّلت الدخول إليها. ولا شيء يفعله المساعد يمكن أن يعبر هذا الحد.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <footer>
+    <p>كل قدرة مذكورة هنا متاحة في المنصة اليوم. وما وُسم بـ<span class="tag-new">جديد</span> أضيف في الأول من سبتمبر 2026.</p>
+    <p>هذا السجل يصف ما يفعله المساعد ولماذا. أما اختبارات القبول التي تثبت سلامة كل قدرة فتُحفظ منفصلة مع الأدلة التقنية للمنصة.</p>
+  </footer>
+
+</div>

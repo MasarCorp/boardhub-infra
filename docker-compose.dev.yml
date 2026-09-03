@@ -27,7 +27,7 @@ name: magales-dev
 services:
   postgres:
     image: pgvector/pgvector:pg15
-    container_name: magales-postgres
+    container_name: boardhub-postgres
     environment:
       POSTGRES_DB: magales
       POSTGRES_USER: magales
@@ -45,7 +45,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: magales-redis
+    container_name: boardhub-redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -57,7 +57,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: magales-minio
+    container_name: boardhub-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: magales
@@ -76,7 +76,7 @@ services:
 
   mailhog:
     image: mailhog/mailhog:latest
-    container_name: magales-mailhog
+    container_name: boardhub-mailhog
     ports:
       - "1025:1025"   # SMTP
       - "8025:8025"   # Web UI
@@ -84,9 +84,9 @@ services:
 
   api:
     build:
-      context: ../Magales
+      context: ../boardhub
       dockerfile: Dockerfile
-    container_name: magales-api
+    container_name: boardhub-api
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,6 +107,7 @@ services:
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: magales
       S3_SECRET_KEY: magales-dev-secret
+      S3_BUCKET: magales-docs
       # ── Tenancy (Day 2) ──
       APP_TENANCY_ALLOW_DEFAULT_TENANT: "true"
       APP_TENANCY_DEFAULT_TENANT_SLUG: "acme"
@@ -118,6 +119,11 @@ services:
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: "${BOOTSTRAP_SUPER_ADMIN_PASSWORD:-}"
       # ── Saynee webhook ──
       SAYNEE_WEBHOOK_SECRET: "${SAYNEE_WEBHOOK_SECRET:-}"
+      # ── ai-services integration (ADR-0004/0005) ──
+      # Backend proxies the provider test-connection to ai-services, and shares this
+      # HMAC secret to authenticate /api/internal/ai/** calls. Blank in dev skips HMAC.
+      AI_SERVICES_BASE_URL: "http://ai-services:8081"
+      AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
       # ── Mail (MailHog in dev) ──
       MAIL_HOST: mailhog
       MAIL_PORT: "1025"
@@ -128,41 +134,87 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
-  # ── Node.js mock API (from Magales-ui/server) ──────────
-  # Lightweight Express server that seeds its own schema and
-  # provides auth, meetings, decisions, boards, tasks, reports,
-  # signatures, and settings endpoints for frontend dev.
-  mock-api:
+  opensearch:
+    image: opensearchproject/opensearch:2.17.1
+    container_name: boardhub-opensearch
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"        # local dev only — no TLS/auth
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - opensearchdata:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ai-services:
     build:
-      context: ../Magales-ui/server
+      context: ../boardhub-ai-services
       dockerfile: Dockerfile
-    container_name: magales-mock-api
+    container_name: boardhub-ai-services
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: magales
-      DB_USER: magales
-      DB_PASSWORD: magales-dev
-      PORT: 8080
+      MAGALES_INTERNAL_BASE_URL: "http://api:8080/api"
+      # Must match the api service's AI_SERVICE_HMAC_SECRET (ADR-0004).
+      AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
+      DEFAULT_PROVIDER: "openrouter"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      # OpenSearch is added as a service in Phase 2 (ADR-0003); endpoint wired ahead of time.
+      OPENSEARCH_URL: "http://opensearch:9200"
+      # Provider keys (optional in dev) — supply via host env for live round-trips.
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      # Host's Ollama (self-host path). Reached via host.docker.internal, not localhost.
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      # Speech-to-text engine: "openrouter" (audio-input LLM, best Arabic; uses OPENROUTER_API_KEY)
+      # or "whisper" (local faster-whisper, on-device). The UI can also override per recording.
+      TRANSCRIBE_PROVIDER: "${TRANSCRIBE_PROVIDER:-openrouter}"
+      TRANSCRIBE_OPENROUTER_MODEL: "${TRANSCRIBE_OPENROUTER_MODEL:-google/gemini-2.5-flash}"
+      # Whisper ASR (local backend / fallback); model cached in the volume below.
+      # Arabic accuracy is poor on "small"; "medium" is the CPU sweet spot. For the best
+      # local Arabic transcription set WHISPER_MODEL=large-v3 (heavier download + slower on CPU).
+      WHISPER_MODEL: "${WHISPER_MODEL:-medium}"
+      HF_HOME: "/models/hf"
+      # Scheduled insights (Phase 5): tenants to refresh + interval.
+      INSIGHTS_TENANTS_CSV: "${INSIGHTS_TENANTS_CSV:-acme,globex}"
+      INSIGHTS_REFRESH_MINUTES: "${INSIGHTS_REFRESH_MINUTES:-30}"
+    extra_hosts:
+      # Make host.docker.internal resolvable (automatic on Docker Desktop; explicit for Linux).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Cache for the local embedding + Whisper models so they aren't re-downloaded per run.
+      - aimodelcache:/models
     ports:
-      - "8085:8080"
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"const s=require('net').createConnection(8080,'localhost');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      - "8081:8081"
     restart: unless-stopped
 
   ui:
     build:
-      context: ../Magales-ui
+      context: ../boardhub-ui
       dockerfile: Dockerfile
-    container_name: magales-ui
+    container_name: boardhub-ui
     depends_on:
-      mock-api:
+      # nginx resolves its upstream at CONFIG LOAD, so the UI cannot start before the
+      # API is actually up: `host not found in upstream "api"` kills the container.
+      api:
         condition: service_healthy
     ports:
       - "4200:80"
@@ -176,3 +228,5 @@ services:
 volumes:
   pgdata:
   miniodata:
+  aimodelcache:
+  opensearchdata:
