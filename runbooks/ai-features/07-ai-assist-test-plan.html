@@ -1940,8 +1940,73 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G5 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G5</span><h2>What to do next</h2></div>
+    <p class="sec-note">When the assistant has just put a record in front of you, the follow-ups should be about <em>that record</em>. Backlog item 22. The failure it replaces: opening <code>BOD-2026-013</code> and being offered "how many meetings are scheduled next month?" — right subject, wrong thing.</p>
+
+    <article class="test" data-id="G5-1">
+      <div class="test-top"><span class="tid">G5-1</span><span class="tname">The suggestions name the record you just opened</span><input class="chk" type="checkbox" aria-label="G5-1 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">افتح صفحة الاجتماع BOD-2026-013</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The chips underneath read <span class="ar-inline">لخّص BOD-2026-013</span>, <span class="ar-inline">اعرض جدول أعمال BOD-2026-013</span>, <span class="ar-inline">ما القرارات الصادرة عن BOD-2026-013؟</span> — the reference number in each. Clicking one asks that question.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>They are topic prompts about meetings in general. The record was on screen and the assistant offered to talk about the category instead.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G5-2">
+      <div class="test-top"><span class="tid">G5-2</span><span class="tname">They follow the conversation as it moves</span><input class="chk" type="checkbox" aria-label="G5-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask about one meeting, then another. The chips track the <b>latest</b> record — citations accumulate in tool order, so the last one is where the conversation arrived.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>They stay pinned to the first record of the session, or mix two records in one row.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G5-3">
+      <div class="test-top"><span class="tid">G5-3</span><span class="tname">A general question still gets general suggestions</span><input class="chk" type="checkbox" aria-label="G5-3 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">ما أبرز مخاطر الحوكمة لدينا؟</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The old topic prompts, unchanged. This is additive: a run that touched no specific record returns exactly the previous list.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The row is empty, or names a record the answer never discussed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G5-4">
+      <div class="test-top"><span class="tid">G5-4</span><span class="tname">A chip is readable on one line</span><input class="chk" type="checkbox" aria-label="G5-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Where a record has no reference number the title is used and truncated with an ellipsis. At most four chips, no duplicates, no <code>{ref}</code> showing through.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A chip wraps to three lines, or a raw placeholder appears.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G6 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G6</span><h2>The chip actually moves</h2></div>
+    <p class="sec-note">Finding 23: <code>open_page</code> shipped with no activity phase, so a run whose only tool is <code>open_page</code> showed "Thinking…" from start to finish. The animation was never broken — there was one phase, so there was nothing to animate between.</p>
+
+    <article class="test" data-id="G6-1">
+      <div class="test-top"><span class="tid">G6-1</span><span class="tname">Opening a page says it is opening a page</span><input class="chk" type="checkbox" aria-label="G6-1 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">افتح صفحة الاجتماع BOD-2026-013</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The chip moves to <span class="ar-inline">جارٍ فتح الصفحة</span> with its own icon, then the answer lands. Not <span class="ar-inline">جارٍ التفكير…</span> for the whole run.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It never leaves the thinking state. Every registered tool must map to a phase; falling back is for a tool that does not exist yet.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G6-2">
+      <div class="test-top"><span class="tid">G6-2</span><span class="tname">A new tool cannot ship without a phase</span><input class="chk" type="checkbox" aria-label="G6-2 passed"></div>
+      <div class="cli">cd boardhub-ui &amp;&amp; npx vitest run src/app/core/utils/agent-activity.spec.ts
+# and prove it can fail: delete the open_page line from TOOL_PHASES and re-run</div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Green with the sibling <code>boardhub-ai-services</code> checkout present. The suite parses the real <code>tools=[...]</code> list, so removing a mapping reports <code>these tools fall back to "Thinking…": open_page</code>. Without the sibling repo it skips loudly; <code>REQUIRE_AGENT_CHECKOUT=1</code> makes the absence a failure.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It passes with a mapping removed. The old list was hand-copied from the agent, so it could only check tools someone had remembered to add — it could not catch this class of miss at all.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; and <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; and <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
