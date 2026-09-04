@@ -2155,8 +2155,75 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G9 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G9</span><h2>One clock across the platform</h2></div>
+    <p class="sec-note">Roadmap item 7. Reminders were already right; this is the other 27 screens catching up. The rule under test: a stored time is the <b>organisation's</b> wall clock, and every screen renders it on the <b>viewer's</b>. Set your machine to a zone that is not the tenant's before starting — with both on <code>Asia/Riyadh</code> every check below passes trivially and proves nothing.</p>
+
+    <article class="test" data-id="G9-1">
+      <div class="test-top"><span class="tid">G9-1</span><span class="tname">A meeting reads the same hour on every screen</span><input class="chk" type="checkbox" aria-label="G9-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Open a meeting from the list, its detail page, the daily agenda and the dashboard. All four show the same time, converted from the org clock to yours.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Two screens disagree. Before item 7 the same meeting could read 09:00 on one and 12:00 on another.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-2">
+      <div class="test-top"><span class="tid">G9-2</span><span class="tname">A due date does not move a day</span><input class="chk" type="checkbox" aria-label="G9-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A task due <code>2026-09-04</code> shows the 4th from any timezone, west of the org included. Date-only values name a day, not a moment, and are never shifted.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It shows the 3rd. This is worse than the bug item 7 fixes — it changes the day a governance deadline falls on.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-3">
+      <div class="test-top"><span class="tid">G9-3</span><span class="tname">A round-trip does not drift</span><input class="chk" type="checkbox" aria-label="G9-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Create a meeting at 09:00 through the UI, reload, reopen. Still 09:00. <code>curl</code> the API and it returns exactly what was sent; the database holds it +3 (see finding 16) and that is expected.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The time moves by the org offset on each save — the signature of a conversion applied twice.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-4">
+      <div class="test-top"><span class="tid">G9-4</span><span class="tname">An empty or malformed date renders blank</span><input class="chk" type="checkbox" aria-label="G9-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A record with no end time shows an empty cell.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any screen prints <code>Invalid Date</code>. A blank cell is honest; that string is not.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-5">
+      <div class="test-top"><span class="tid">G9-5</span><span class="tname">Reminders still behave exactly as they did</span><input class="chk" type="checkbox" aria-label="G9-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Section <b>Z</b> passes unchanged. <code>RemindersService</code> now delegates to the shared helper rather than holding its own copy, so Z is the regression gate on that refactor.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any Z check that passed before now fails. The extraction was meant to change nothing about reminders.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-6">
+      <div class="test-top"><span class="tid">G9-6</span><span class="tname">Known bad data — seeded times read three hours early</span><input class="chk" type="checkbox" aria-label="G9-6 passed"></div>
+      <div class="gap"><b>Expected, and not a bug in this work — finding 27, still open.</b> <code>data-postgres.sql</code> inserts with raw SQL, which skips the <code>jdbc.time_zone</code> shift the application applies, so every <b>seeded</b> meeting, task and decision returns three hours earlier than the row suggests. <code>BOD-2026-013</code> is <code>10:00</code> in psql and <code>07:00</code> from the API. Records you create yourself are correct. Tick this once you have confirmed the discrepancy is confined to seeded rows — if something you created is also off by three hours, that <i>is</i> a bug in item 7.</div>
+    </article>
+
+    <article class="test" data-id="G9-7">
+      <div class="test-top"><span class="tid">G9-7</span><span class="tname">The UI container reports healthy</span><input class="chk" type="checkbox" aria-label="G9-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker ps</code> shows <code>boardhub-ui</code> as <b>(healthy)</b> within ~10s of start. Finding 28: the probe asked for <code>localhost</code>, which resolves to <code>::1</code>, while nginx binds IPv4 only — so it had never once been healthy.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It sits <code>unhealthy</code> while <code>curl localhost:4200</code> returns 200. That combination is the healthcheck being wrong, not the app.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-8">
+      <div class="test-top"><span class="tid">G9-8</span><span class="tname">The AI service account has no published default</span><input class="chk" type="checkbox" aria-label="G9-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Comment out <code>MAGALES_SERVICE_*</code> in <code>.env</code>, restart <code>ai-services</code>: the log carries one explicit <code>MAGALES_SERVICE_USERNAME / MAGALES_SERVICE_PASSWORD are not set</code> error and AI answers read as empty. Restore them and it authenticates again. Neither compose file nor <code>.env.example</code> contains a working pair.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It authenticates with the variables unset — something is still supplying the default. That is what made finding 1 read as closed for three days while the credential was unchanged.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> on 4 September for the collected rating and the insert menu; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> and <b>G9</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>

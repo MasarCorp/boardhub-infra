@@ -168,12 +168,22 @@ services:
         condition: service_healthy
     environment:
       MAGALES_INTERNAL_BASE_URL: "http://api:8080/api"
-      # Service account ai-services uses to read/write domain data. No default in the
-      # application any more — it used to fall back to admin/P@ssw0rd. The dev value is
-      # the seeded admin and is explicit here so it stays dev-only; override in any
-      # shared environment.
-      MAGALES_SERVICE_USERNAME: "${MAGALES_SERVICE_USERNAME:-admin}"
-      MAGALES_SERVICE_PASSWORD: "${MAGALES_SERVICE_PASSWORD:-P@ssw0rd}"
+      # Service account ai-services uses to read and write domain data.
+      #
+      # No default, deliberately — every other secret in this file is `${VAR:-}` and these two
+      # were the exception. They fell back to the seeded SUPER_ADMIN with a password published in
+      # the repo, which meant the ai-services fix that removed the same default from config.py
+      # (50315db) changed nothing in practice: compose was still supplying it, so the finding read
+      # as closed while the credential was unchanged everywhere it actually ran.
+      #
+      # Unset, the worker logs one explicit error and its calls read as unauthenticated — which
+      # looks like empty data rather than a misconfiguration, so check these first if AI Assist
+      # starts answering "there are no meetings". Set them in .env (gitignored); see .env.example.
+      #
+      # The account is SUPER_ADMIN today, which is more than the worker needs. Narrowing it to a
+      # least-privilege role is roadmap backlog item 24, not something to fake here.
+      MAGALES_SERVICE_USERNAME: "${MAGALES_SERVICE_USERNAME:-}"
+      MAGALES_SERVICE_PASSWORD: "${MAGALES_SERVICE_PASSWORD:-}"
       # Must match the api service's AI_SERVICE_HMAC_SECRET (ADR-0004).
       AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
       DEFAULT_PROVIDER: "openrouter"
