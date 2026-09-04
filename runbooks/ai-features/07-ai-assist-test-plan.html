@@ -2201,8 +2201,11 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
 
     <article class="test" data-id="G9-6">
-      <div class="test-top"><span class="tid">G9-6</span><span class="tname">Known bad data — seeded times read three hours early</span><input class="chk" type="checkbox" aria-label="G9-6 passed"></div>
-      <div class="gap"><b>Expected, and not a bug in this work — finding 27, still open.</b> <code>data-postgres.sql</code> inserts with raw SQL, which skips the <code>jdbc.time_zone</code> shift the application applies, so every <b>seeded</b> meeting, task and decision returns three hours earlier than the row suggests. <code>BOD-2026-013</code> is <code>10:00</code> in psql and <code>07:00</code> from the API. Records you create yourself are correct. Tick this once you have confirmed the discrepancy is confined to seeded rows — if something you created is also off by three hours, that <i>is</i> a bug in item 7.</div>
+      <div class="test-top"><span class="tid">G9-6</span><span class="tname">The database and the API agree</span><input class="chk" type="checkbox" aria-label="G9-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>psql</code> and <code>GET /api/meetings</code> report the <b>same</b> time for <code>BOD-2026-013</code> — 10:00 in both. Create a meeting at 09:00 and the row also says 09:00. <code>hibernate.jdbc.time_zone</code> is gone from all three profiles (findings 16 and 27).</p></div>
+        <div><p class="lbl fail">Fails if</p><p>They differ by three hours. That was the old behaviour: JPA round-trips were consistent, but raw SQL never took the shift, so every seeded record read three hours early.</p></div>
+      </div>
     </article>
 
     <article class="test" data-id="G9-7">
@@ -2292,8 +2295,46 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G11 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G11</span><h2>One name per record</h2></div>
+    <p class="sec-note">Finding 33. A citation marker renders as the record's title, so a line that already named the record printed it twice — invisible until mentions became visible. Browser checks.</p>
+
+    <article class="test" data-id="G11-1">
+      <div class="test-top"><span class="tid">G11-1</span><span class="tname">A listed meeting is named once</span><input class="chk" type="checkbox" aria-label="G11-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask <span dir="rtl">ما هي اجتماعات مجلس الإدارة لدي؟</span>. Each bullet reads <i>title — CODE · status · date</i> with the title linked <b>once</b>, and no trailing repeat of the same title.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The title appears twice, or a bare <code>[3]</code> is left where the repeat was. Dropping the marker means dropping its text too.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G11-2">
+      <div class="test-top"><span class="tid">G11-2</span><span class="tname">A record not otherwise named still gets its mention</span><input class="chk" type="checkbox" aria-label="G11-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>In prose — "the board approved it [1]" — the marker still renders as the record's name and links. Only a marker whose record is <b>already linked on that line</b> is dropped.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Citations vanish from prose answers. That would trade one bug for a worse one: claims with nothing to click through to.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G11-3">
+      <div class="test-top"><span class="tid">G11-3</span><span class="tname">Each line judges itself</span><input class="chk" type="checkbox" aria-label="G11-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A record named on several bullets links on each of them. "Already said" resets at every list item and paragraph.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only the first bullet links. The scope is the block, not the answer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G11-4">
+      <div class="test-top"><span class="tid">G11-4</span><span class="tname">The model's own words are never deleted</span><input class="chk" type="checkbox" aria-label="G11-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A reference code the model wrote twice in one line still appears twice. Only the marker we inserted is removed.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any text the model wrote disappears. Removing our own footnote is one thing; editing the answer is another.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b>, <b>G9</b> and <b>G10</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
