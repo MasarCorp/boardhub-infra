@@ -2005,8 +2005,53 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G7 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G7</span><h2>Legibility of the answer</h2></div>
+    <p class="sec-note">Findings 25 and 26 plus item 23. All three are the same complaint in different places — the assistant was doing the right thing and not showing it. Browser checks throughout; none of this is observable from a shell.</p>
+
+    <article class="test" data-id="G7-1">
+      <div class="test-top"><span class="tid">G7-1</span><span class="tname">A record named by its title looks like a link</span><input class="chk" type="checkbox" aria-label="G7-1 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">ما هو الاجتماع الدوري الثالث عشر لمجلس الإدارة؟</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The meeting's name in the body carries a <b>page glyph</b> and a real underline, and opens the record. It stays visible when the model wraps it in bold or puts it in a list.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It reads as ordinary emphasis. Before this only <code>[n]</code> markers were styled; a title match got a tint and a 35%-opacity border, invisible against bold Arabic — clickable with no way to know.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G7-2">
+      <div class="test-top"><span class="tid">G7-2</span><span class="tname">The chip moves through the run</span><input class="chk" type="checkbox" aria-label="G7-2 passed"></div>
+      <div class="prompt"><span class="turn" dir="rtl">اعرض اجتماعات مجلس الإدارة ثم افتح آخر واحد</span><button class="copy" type="button">Copy</button></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A visible sequence — <span class="ar-inline">جارٍ التفكير…</span> → <span class="ar-inline">جارٍ الاطلاع على الوثائق</span> → <span class="ar-inline">جارٍ فتح الصفحة</span> → <span class="ar-inline">جارٍ صياغة الإجابة</span> — with the icon changing and animating on each change.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It holds on thinking. Composing the answer is the longest phase of most runs; without its own state the honest label for most of the elapsed time is the generic one, and the chip looks frozen because it has nothing else to say.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G7-3">
+      <div class="test-top"><span class="tid">G7-3</span><span class="tname">You can see the step you are waiting on</span><input class="chk" type="checkbox" aria-label="G7-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>While the answer streams, the trace is open and the <b>current</b> step sits at the bottom, coloured and breathing. It folds into the finished entry when its tool reports, and the list collapses to "N steps" when the answer lands.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only completed steps appear — the one being waited on is then the one step never shown, which is a report rather than a live view.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G7-4">
+      <div class="test-top"><span class="tid">G7-4</span><span class="tname">Copy, helpful, not helpful</span><input class="chk" type="checkbox" aria-label="G7-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Under every finished answer, including short ones. Copy puts the answer's <b>markdown</b> on the clipboard, not the rendered HTML, and briefly confirms. A thumb lights when chosen and clearing it is a second click on the lit one.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The row only appears on long answers, copy pastes markup, or a rating cannot be undone.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G7-5">
+      <div class="test-top"><span class="tid">G7-5</span><span class="tname">Known limit — the rating is captured, not collected</span><input class="chk" type="checkbox" aria-label="G7-5 passed"></div>
+      <div class="gap"><b>Expected limit, not a bug.</b> A rating is stored on the message and saved with the thread. There is <b>no rating endpoint</b>, so nothing aggregates it yet and nobody is reading the thumbs down. Posting to an endpoint that does not exist would look like it worked, which is worse than not sending. Tick this once you have confirmed a rating survives reopening the conversation, and treat "someone is acting on it" as the next piece of work, not as done.</div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; and <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
