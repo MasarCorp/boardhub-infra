@@ -2222,8 +2222,78 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G10 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G10</span><h2>A mention you can see, and a record beside the chat</h2></div>
+    <p class="sec-note">Findings 29–31, all reported from the running product. G2 already checks that a mention <i>links</i>; these check that it <b>looks</b> like one, that opening it does not cost you the conversation, and that hovering shows what it points at. Browser-only — none of this is visible from a shell, which is exactly how finding 29 survived a batch.</p>
+
+    <article class="test" data-id="G10-1">
+      <div class="test-top"><span class="tid">G10-1</span><span class="tname">A mention is visibly a link</span><input class="chk" type="checkbox" aria-label="G10-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask <span dir="rtl">ما هي اجتماعات مجلس الإدارة لدي؟</span>. Every meeting named in the answer carries a document glyph and a real underline, <b>including</b> one written inside markdown bold.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It reads as bold text and only reveals itself on hover or on click. That was finding 29 — clickable but invisible, for a whole release.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-2">
+      <div class="test-top"><span class="tid">G10-2</span><span class="tname">The style survives the build</span><input class="chk" type="checkbox" aria-label="G10-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>In DevTools, the anchor's computed <code>text-decoration</code> is <code>underline</code> and the rule shown is from <code>styles*.css</code>, not the component chunk. Check the CSS the <b>container serves</b>, not the source.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The matching rule carries <code>[_ngcontent-…]</code>. Anchors injected with <code>[innerHTML]</code> never have that attribute, so a component-scoped rule cannot reach them however correct its contents are.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-3">
+      <div class="test-top"><span class="tid">G10-3</span><span class="tname">Opening a record keeps the conversation</span><input class="chk" type="checkbox" aria-label="G10-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>From a <b>floating</b> panel, click a meeting mention. The panel docks, the record opens beside it, and the conversation is still there and still scrolled to the same answer.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The record loads underneath the panel, or the panel closes. Try it from fullscreen and floating both — only fullscreen was handled before.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-4">
+      <div class="test-top"><span class="tid">G10-4</span><span class="tname">Hover shows what the link points at</span><input class="chk" type="checkbox" aria-label="G10-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Hovering a mention shows a card with the record type, its reference (BOD-2026-013) and its title, plus an <b>Open</b> action. The card stays while the pointer moves onto it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It flickers shut as you move toward it, or jitters along a multi-word Arabic title — it is positioned from the anchor's box, not the pointer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-5">
+      <div class="test-top"><span class="tid">G10-5</span><span class="tname">The card cannot disagree with the answer</span><input class="chk" type="checkbox" aria-label="G10-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>No network request fires on hover — everything shown comes from the citation the answer already carries. The title follows the reading language, matching the mention itself.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The card fetches, or shows a title that differs from the record named in the sentence.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-6">
+      <div class="test-top"><span class="tid">G10-6</span><span class="tname">A record title cannot break out of an attribute</span><input class="chk" type="checkbox" aria-label="G10-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A record titled <code>Budget &amp; &lt;Risk&gt; "2026"</code> renders its mention normally and the emitted <code>data-title</code> is fully escaped.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Raw <code>&lt;</code> or a bare quote appears inside the attribute. Finding 31: escapeAttr handled only <code>&amp;</code> and <code>"</code> while it saw nothing but validated routes.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-7">
+      <div class="test-top"><span class="tid">G10-7</span><span class="tname">Arabic, RTL</span><input class="chk" type="checkbox" aria-label="G10-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The glyph sits on the correct side of the mention in RTL, and the hover card opens within the panel rather than off the edge of the window.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The glyph collides with the text, or the card is clipped.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-8">
+      <div class="test-top"><span class="tid">G10-8</span><span class="tname">A plain question still links nothing it should not</span><input class="chk" type="checkbox" aria-label="G10-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>An answer citing no record contains no mentions and shows no cards. The preview is built from citations, so nothing to cite means nothing to preview.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Ordinary words become links now that they are more visible. The regression G2 guarded against is easier to notice, not less likely.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> and <b>G9</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b>, <b>G9</b> and <b>G10</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
