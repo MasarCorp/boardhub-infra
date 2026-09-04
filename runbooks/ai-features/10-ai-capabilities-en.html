@@ -1,0 +1,449 @@
+<title>AI Capability Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #F5F7FA;
+    --paper: #FFFFFF;
+    --paper-2: #FAFBFD;
+    --ink: #0A1F44;
+    --ink-2: #33415C;
+    --muted: #5F6B80;
+    --line: #DDE3EC;
+    --line-soft: #EDF1F6;
+    --accent: #0E7C7B;
+    --accent-soft: #E3F1F0;
+    --new: #9A6608;
+    --new-soft: #FBF3E2;
+    --shadow: 0 1px 2px rgba(10,31,68,.05), 0 8px 24px rgba(10,31,68,.06);
+
+    --f-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0A1120;
+      --paper: #121C2E;
+      --paper-2: #17233A;
+      --ink: #E8EDF5;
+      --ink-2: #C3CDDC;
+      --muted: #8B99AD;
+      --line: #26344B;
+      --line-soft: #1C2839;
+      --accent: #3FB3AE;
+      --accent-soft: #14312F;
+      --new: #D19A3A;
+      --new-soft: #2A2113;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0A1120;
+    --paper: #121C2E;
+    --paper-2: #17233A;
+    --ink: #E8EDF5;
+    --ink-2: #C3CDDC;
+    --muted: #8B99AD;
+    --line: #26344B;
+    --line-soft: #1C2839;
+    --accent: #3FB3AE;
+    --accent-soft: #14312F;
+    --new: #D19A3A;
+    --new-soft: #2A2113;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink-2);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 780px; margin: 0 auto; }
+
+  /* ── Masthead ─────────────────────────────── */
+  .masthead { padding: 60px 0 30px; border-bottom: 2px solid var(--ink); }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11px; font-weight: 500;
+    letter-spacing: .15em; text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(30px, 5vw, 42px);
+    line-height: 1.14;
+    color: var(--ink);
+    margin: 0 0 16px;
+    text-wrap: balance;
+    letter-spacing: -.01em;
+  }
+  .standfirst { font-size: 17px; color: var(--muted); max-width: 60ch; margin: 0; }
+
+  .lede {
+    margin: 26px 0 0;
+    padding: 16px 18px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-inline-start: 3px solid var(--accent);
+    border-radius: 10px;
+    font-size: 14.5px;
+    color: var(--ink-2);
+  }
+  .lede b { color: var(--ink); }
+
+  /* ── Sections ─────────────────────────────── */
+  section { margin-top: 54px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .sec-tag {
+    font-family: var(--f-mono); font-size: 12px; font-weight: 500;
+    color: var(--paper); background: var(--ink);
+    padding: 3px 8px; border-radius: 4px; flex: none;
+  }
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600; font-size: 23px;
+    color: var(--ink); margin: 0;
+    letter-spacing: -.005em;
+  }
+  .sec-note { font-size: 14.5px; color: var(--muted); margin: 0 0 22px; max-width: 62ch; }
+
+  /* ── Capability list ──────────────────────── */
+  ol.caps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px;
+            background: var(--line); border: 1px solid var(--line); border-radius: 12px;
+            overflow: hidden; box-shadow: var(--shadow); }
+  ol.caps > li { background: var(--paper); padding: 16px 18px; display: grid;
+                 grid-template-columns: 2.2rem 1fr; column-gap: 14px; row-gap: 4px; }
+  .num {
+    font-family: var(--f-mono); font-size: 12.5px; font-weight: 500;
+    color: var(--accent); padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cap-title { grid-column: 2; font-size: 15.5px; font-weight: 600; color: var(--ink); }
+  .cap-body { grid-column: 2; font-size: 14.5px; color: var(--ink-2); margin: 0; }
+  .cap-why { grid-column: 2; font-size: 13.5px; color: var(--muted); margin: 2px 0 0; }
+  .cap-why b { color: var(--accent); font-weight: 600; }
+
+  .tag-new {
+    display: inline-block; vertical-align: 2px; margin-inline-start: 8px;
+    font-family: var(--f-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--new); background: var(--new-soft);
+    border: 1px solid currentColor; border-radius: 999px;
+    padding: 1px 7px;
+  }
+
+  /* ── Glossary ─────────────────────────────── */
+  dl.gloss { margin: 0; display: flex; flex-direction: column; gap: 18px; }
+  dl.gloss > div {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 10px; padding: 15px 18px;
+  }
+  dt {
+    font-family: var(--f-display); font-size: 16.5px; font-weight: 600;
+    color: var(--ink); margin-bottom: 5px;
+  }
+  dt .also {
+    font-family: var(--f-mono); font-size: 11.5px; font-weight: 400;
+    color: var(--muted); margin-inline-start: 8px; letter-spacing: .02em;
+  }
+  dd { margin: 0; font-size: 14.5px; color: var(--ink-2); }
+  dd + dd { margin-top: 8px; color: var(--muted); font-size: 13.5px; }
+  dd .ask { color: var(--ink); font-style: italic; }
+
+  footer {
+    margin-top: 60px; padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted);
+  }
+  footer p { margin: 0 0 8px; max-width: 62ch; }
+
+  a { color: var(--accent); }
+  a:focus-visible, li:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 560px) {
+    ol.caps > li { grid-template-columns: 1.8rem 1fr; column-gap: 10px; padding: 14px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">BoardHub · Business reference</p>
+    <h1>What the AI assistant does, in plain terms</h1>
+    <p class="standfirst">A register of every AI capability in the platform, written for the people who use it rather than the people who built it — followed by a glossary of the terms it relies on.</p>
+
+    <div class="lede">
+      <b>One principle runs through all of it.</b> The assistant answers from <b>your organisation's own records</b> — your minutes, decisions, agenda items, tasks and documents. It is not answering from general knowledge about boards, and it will not invent a figure it cannot find. Every answer points back to the record it came from, so a claim can always be checked.
+    </div>
+  </header>
+
+  <!-- ══ A ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">A</span><h2>Asking your records a question</h2></div>
+    <p class="sec-note">The everyday use: instead of opening five screens to assemble an answer, you ask for it.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">01</span>
+        <span class="cap-title">Ask in your own words</span>
+        <p class="cap-body">Ask in Arabic or English, the way you would ask a colleague — "how many agenda items are outstanding?", "what did the audit committee decide about supplier contracts?" No search syntax, no filters to set.</p>
+      </li>
+      <li>
+        <span class="num">02</span>
+        <span class="cap-title">Every answer shows its source</span>
+        <p class="cap-body">Answers carry numbered references back to the exact minutes, decision or document they came from. Each one is a link that opens the record.</p>
+        <p class="cap-why"><b>Why it matters:</b> an assertion nobody can trace is not evidence. In a governance setting, the citation is the point.</p>
+      </li>
+      <li>
+        <span class="num">03</span>
+        <span class="cap-title">One search covers both languages<span class="tag-new">New</span></span>
+        <p class="cap-body">An Arabic question finds the answer inside an English paper, and an English question finds it inside Arabic minutes. You do not have to ask twice or translate anything yourself.</p>
+        <p class="cap-why"><b>Why it matters:</b> board archives are genuinely bilingual. Searching one language at a time means half the record is invisible on every query.</p>
+      </li>
+      <li>
+        <span class="num">04</span>
+        <span class="cap-title">It knows which screen you are on</span>
+        <p class="cap-body">Ask "summarise this" while viewing a meeting and it summarises that meeting. The page you are looking at becomes the context, and you can switch it off for a single question when you want a system-wide answer.</p>
+      </li>
+      <li>
+        <span class="num">05</span>
+        <span class="cap-title">It remembers the conversation</span>
+        <p class="cap-body">Follow-up questions work — "and who owns that one?", "what about last quarter?" — across roughly a dozen exchanges, so you are not restating context every time.</p>
+      </li>
+      <li>
+        <span class="num">06</span>
+        <span class="cap-title">It will not invent a number</span>
+        <p class="cap-body">If a figure, name or date is not in the records, the assistant says so rather than producing a plausible one.</p>
+        <p class="cap-why"><b>Why it matters:</b> a governance tool that occasionally fabricates a number is worse than no tool, because you would have to verify everything it says.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ B ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">B</span><h2>Running a meeting and writing it up</h2></div>
+    <p class="sec-note">From the recording in the room to minutes somebody can actually review.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">07</span>
+        <span class="cap-title">Record a meeting, get draft minutes</span>
+        <p class="cap-body">Arabic speech is transcribed and turned into structured draft minutes: a summary, what happened under each agenda item, decisions taken, and a list of action items with owners and due dates where the discussion made them explicit.</p>
+      </li>
+      <li>
+        <span class="num">08</span>
+        <span class="cap-title">Attendance comes from the register, not from guesswork</span>
+        <p class="cap-body">The attendance section is built from the people actually recorded as attending that meeting, with their voting status — not from names the system inferred from the conversation.</p>
+      </li>
+      <li>
+        <span class="num">09</span>
+        <span class="cap-title">Unattributed stays unattributed</span>
+        <p class="cap-body">A recording carries no labels saying who is speaking. So the assistant names a person only where the discussion itself makes it explicit — someone is addressed by name, introduces themselves, or is recorded as moving or seconding. Otherwise the action item is left without an owner for you to assign.</p>
+        <p class="cap-why"><b>Why it matters:</b> an unassigned action is a small gap you can close in a minute. A confidently wrong name in signed board minutes is a different kind of problem.</p>
+      </li>
+      <li>
+        <span class="num">10</span>
+        <span class="cap-title">Draft papers as Word or PDF</span>
+        <p class="cap-body">Ask for a memo, a report or a briefing note and the assistant writes it and files it against the meeting it belongs to, ready to open from the library.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ C ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">C</span><h2>Reaching a decision</h2></div>
+    <p class="sec-note">Where the assistant is most useful is not writing the decision — it is remembering what the board already said.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">11</span>
+        <span class="cap-title">Has the board decided this before?<span class="tag-new">New</span></span>
+        <p class="cap-body">Ask whether a subject has come up before and the assistant searches past decisions and minutes, then shows what was decided and when, each one cited. It offers them as related matters for you to weigh — it does not tell you a question is closed.</p>
+        <p class="cap-why"><b>Why it matters:</b> boards re-open settled matters because the context has gone by the time the question returns. This puts the earlier record in front of whoever is asking. And because boards sometimes re-open things deliberately, the judgement stays with you.</p>
+      </li>
+      <li>
+        <span class="num">12</span>
+        <span class="cap-title">Draft a decision by conversation</span>
+        <p class="cap-body">Say what you want decided and the assistant gathers what a decision needs — the committee, the number, the date, the category — asking rather than assuming, then files it. If you would rather not file it yet, it drafts the full text for you to copy.</p>
+      </li>
+      <li>
+        <span class="num">13</span>
+        <span class="cap-title">Choose a committee without losing your place<span class="tag-new">New</span></span>
+        <p class="cap-body">When a choice is needed — which board, which meeting — a picker appears while the assistant waits. Your click goes back into the same piece of work, so it continues from where it paused instead of starting the conversation again.</p>
+        <p class="cap-why"><b>Why it matters:</b> previously a choice ended the exchange and your answer began a fresh one, which had to rebuild everything it had just worked out.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ D ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">D</span><h2>Making sure things actually happen</h2></div>
+    <p class="sec-note">Decisions are easy to take and easy to lose. This is the follow-through.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">14</span>
+        <span class="cap-title">Reminders you set, or the assistant sets for you</span>
+        <p class="cap-body">Say "remind me before the next audit committee meeting to review the supplier contracts" and the assistant works out when that meeting actually is and sets it. Reminders are private to you — nobody else can see them or set one in your name.</p>
+      </li>
+      <li>
+        <span class="num">15</span>
+        <span class="cap-title">A reminder arrives as a card, not a badge</span>
+        <p class="cap-body">When the time comes, a card appears with three choices: put it off by a day, three days or a week; close it; or talk to the assistant about it.</p>
+        <p class="cap-why"><b>Why it matters:</b> a small number on a bell waits to be noticed, which is the one thing a reminder cannot afford to do.</p>
+      </li>
+      <li>
+        <span class="num">16</span>
+        <span class="cap-title">Act on a reminder without leaving it</span>
+        <p class="cap-body">Choose "talk about this" and the assistant opens the record the reminder points at, tells you where the matter now stands, and offers concrete next steps it can carry out — add an agenda item, create a task, draft the decision.</p>
+      </li>
+      <li>
+        <span class="num">17</span>
+        <span class="cap-title">What is overdue, at a glance</span>
+        <p class="cap-body">Ask what is late or at risk and the assistant computes it from live records — overdue decisions and tasks, activity by month — and presents it as figures and a chart rather than prose.</p>
+      </li>
+      <li>
+        <span class="num">18</span>
+        <span class="cap-title">Times mean what you typed</span>
+        <p class="cap-body">You set and read reminders in your own local time wherever you are, while the assistant still resolves "before the next meeting" against the organisation's working calendar.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ E ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">E</span><h2>Working with documents</h2></div>
+    <p class="sec-note">Board papers arrive as attachments, scans and long PDFs nobody has time to read twice.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">19</span>
+        <span class="cap-title">Ask questions of one specific document</span>
+        <p class="cap-body">Point the assistant at a single uploaded paper and ask about that paper alone — what it recommends, what it says about a figure — without answers drifting in from elsewhere in the archive.</p>
+      </li>
+      <li>
+        <span class="num">20</span>
+        <span class="cap-title">Scanned Arabic documents become searchable</span>
+        <p class="cap-body">A scan is an image, and an image is invisible to search. Text is read out of scanned Arabic pages so an older signed document can be found and quoted like any other record.</p>
+      </li>
+      <li>
+        <span class="num">21</span>
+        <span class="cap-title">Summarise or translate on the spot</span>
+        <p class="cap-body">Condense a long paper into what a board member needs before the meeting, or move a passage between Arabic and English without leaving the page.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ F ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">F</span><h2>Where you work with it</h2></div>
+    <p class="sec-note">The assistant sits beside every screen, and keeps what it produces in one place.</p>
+
+    <ol class="caps">
+      <li>
+        <span class="num">22</span>
+        <span class="cap-title">One workspace for everything it made</span>
+        <p class="cap-body">Four sections in the assistant panel: your <b>conversations</b>, the <b>meeting notes</b> it produced, an <b>inbox</b> of reminders waiting for you, and <b>search</b> across all of it. Opening a set of meeting notes reads them in the panel — you do not lose the conversation to go and look.</p>
+      </li>
+      <li>
+        <span class="num">23</span>
+        <span class="cap-title">Conversations name themselves</span>
+        <p class="cap-body">Each conversation is titled by what it was actually about, so the history is a list you can scan rather than a column of identical opening lines.</p>
+      </li>
+      <li>
+        <span class="num">24</span>
+        <span class="cap-title">Private by default, and separated by organisation</span>
+        <p class="cap-body">Your conversations, meeting notes and reminders are yours; being an administrator does not grant sight of them. Each organisation's records are held separately, and the assistant can only ever reach the one you are signed in to.</p>
+        <p class="cap-why"><b>Why it matters:</b> what you ask the assistant reveals what you are working on. That deserves the same protection as the records themselves.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ══ GLOSSARY ══ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G</span><h2>The terms, defined</h2></div>
+    <p class="sec-note">Words that appear above, or in conversations about the platform, explained without jargon.</p>
+
+    <dl class="gloss">
+      <div>
+        <dt>Knowledgebase <span class="also">the searchable record</span></dt>
+        <dd>Everything the assistant is allowed to read and search on your behalf, held in a form that can be queried by meaning rather than by exact wording.</dd>
+        <dd><b>What is in it:</b> minutes, decisions, agenda items, meetings, tasks, voting sessions, signature requests, boards and committees, library documents, and any paper you upload — for your organisation only.</dd>
+        <dd><b>What you can ask of it:</b> what was decided and when · what a paper says · what is overdue or at risk · who owes what · whether a subject has come up before · what happened in a particular meeting · what a scanned document contains.</dd>
+      </div>
+      <div>
+        <dt>Assistant <span class="also">also called the agent</span></dt>
+        <dd>The part of the platform you talk to. It differs from a search box in that it can act, not only answer: it can create a task, add an agenda item, draft a decision, file a document or set a reminder — always through the same permissions you have.</dd>
+      </div>
+      <div>
+        <dt>Tool</dt>
+        <dd>One specific thing the assistant is able to do — look up a meeting, list overdue tasks, save minutes, set a reminder. When it answers, it is choosing which of these to use. The list of tools is fixed by the platform, which is what stops it doing anything it was not built to do.</dd>
+      </div>
+      <div>
+        <dt>Citation <span class="also">reference</span></dt>
+        <dd>The numbered link beside a statement, pointing at the record it came from. If a sentence has no citation, it is the assistant's own wording rather than something quoted from your records.</dd>
+      </div>
+      <div>
+        <dt>Search by meaning <span class="also">semantic search</span></dt>
+        <dd>Finding records that are <em>about</em> what you asked, even when they use none of your words. Asking for <span class="ask">"late board resolutions"</span> will surface a decision written as <span class="ask">"قرار متأخر عن موعد التنفيذ"</span>. Ordinary keyword search is still used alongside it, because it is what finds an exact decision number or a person's name.</dd>
+      </div>
+      <div>
+        <dt>Cross-lingual</dt>
+        <dd>That the same search covers Arabic and English at once, because records are indexed by meaning rather than by language. One question searches the whole archive.</dd>
+      </div>
+      <div>
+        <dt>Page context <span class="also">scope</span></dt>
+        <dd>The record you currently have open, which the assistant treats as the subject of "this" — this meeting, this decision. You can close it for a question that should look across everything.</dd>
+      </div>
+      <div>
+        <dt>Precedent</dt>
+        <dd>An earlier decision or set of minutes that bears on the matter in front of you. The assistant offers precedents as candidates to weigh, never as a ruling that a question is already closed.</dd>
+      </div>
+      <div>
+        <dt>Guardrail</dt>
+        <dd>A rule the assistant cannot talk its way past — do not state a figure that is not in the records, do not name a person the discussion did not name, do not present a draft as though it were approved.</dd>
+      </div>
+      <div>
+        <dt>Reminder, and how it differs from a notification</dt>
+        <dd>A <b>notification</b> reports something that has already happened, and the system decides you should know. A <b>reminder</b> is an intention about the future that you chose, and only you can move or cancel it. When a reminder comes due it produces a notification — the two stay separate on purpose.</dd>
+      </div>
+      <div>
+        <dt>Transcription</dt>
+        <dd>Turning the speech in a recording into text. It captures the words, not who said them — which is why attribution in minutes is handled so carefully.</dd>
+      </div>
+      <div>
+        <dt>Text recognition <span class="also">OCR</span></dt>
+        <dd>Reading the words out of a scanned page so a document that was only an image becomes searchable and quotable. Supported for Arabic, which is where most older signed records sit.</dd>
+      </div>
+      <div>
+        <dt>Private to you <span class="also">owner-scoped</span></dt>
+        <dd>Visible only to the person it belongs to, regardless of role. Applied to conversations, meeting notes and reminders, because these reveal what someone is working on rather than what the board has formally recorded.</dd>
+      </div>
+      <div>
+        <dt>Organisation separation <span class="also">tenancy</span></dt>
+        <dd>Each organisation's records are held apart, and a request can only ever reach the organisation you signed in to. Nothing the assistant does can cross that line.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <footer>
+    <p>Every capability listed here is live in the platform today. Items marked <span class="tag-new">New</span> were added on 1 September 2026.</p>
+    <p>This register describes what the assistant does and why. The acceptance tests that prove each one behaves as described are maintained separately, alongside the platform's technical runbooks.</p>
+  </footer>
+
+</div>

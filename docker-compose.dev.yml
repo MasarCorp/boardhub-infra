@@ -22,7 +22,7 @@
 #   - ui       (4200 → 80)   Angular UI served by nginx
 # ────────────────────────────────────────────────────────────
 
-name: magales-dev
+name: boardhub
 
 services:
   postgres:
@@ -74,6 +74,14 @@ services:
       retries: 5
     restart: unless-stopped
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: boardhub-mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    restart: unless-stopped
+
   api:
     build:
       context: ../boardhub
@@ -84,6 +92,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: postgres
       DB_HOST: postgres
@@ -98,35 +108,28 @@ services:
       S3_ACCESS_KEY: magales
       S3_SECRET_KEY: magales-dev-secret
       S3_BUCKET: magales-docs
-      # Dev: no SMTP server runs locally, so don't gate health on the mail indicator.
-      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
       # ── Tenancy (Day 2) ──
-      # In dev only, when no sub-domain matches and no X-Tenant-Slug header is sent,
-      # fall back to the "acme" tenant. NEVER true in prod.
       APP_TENANCY_ALLOW_DEFAULT_TENANT: "true"
       APP_TENANCY_DEFAULT_TENANT_SLUG: "acme"
       APP_TENANCY_HOST_SUFFIXES: "magales.app,magales.local,magales.test"
       APP_TENANCY_SIGNUP_DEV_HINT: "true"
       APP_TENANCY_VERIFICATION_BASE_URL: "http://localhost:4200/verify-email"
-      # ── Bootstrap SUPER_ADMIN (Day 2 close-out) ──
-      # If the tenants table is empty AND both of these are non-empty, the API
-      # creates an internal "_platform" tenant + a SUPER_ADMIN user on first
-      # boot. In dev they are left blank because data-postgres.sql already
-      # seeds acme + globex, so the runner is a no-op. Set them when forking
-      # this file for a fresh staging / prod / on-prem deploy.
+      # ── Bootstrap SUPER_ADMIN ──
       BOOTSTRAP_SUPER_ADMIN_EMAIL: "${BOOTSTRAP_SUPER_ADMIN_EMAIL:-}"
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: "${BOOTSTRAP_SUPER_ADMIN_PASSWORD:-}"
-      # ── Saynee inbound webhook (Day 2 close-out) ──
-      # HMAC secret for inbound /api/webhooks/saynee/{tenantSlug}. Leave blank
-      # in dev (HMAC verification is skipped; the tenant-slug path still
-      # gates access). Set in staging/prod once the real Saynee account is
-      # provisioned.
+      # ── Saynee webhook ──
       SAYNEE_WEBHOOK_SECRET: "${SAYNEE_WEBHOOK_SECRET:-}"
       # ── ai-services integration (ADR-0004/0005) ──
       # Backend proxies the provider test-connection to ai-services, and shares this
       # HMAC secret to authenticate /api/internal/ai/** calls. Blank in dev skips HMAC.
       AI_SERVICES_BASE_URL: "http://ai-services:8081"
       AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
+      # ── Mail (MailHog in dev) ──
+      MAIL_HOST: mailhog
+      MAIL_PORT: "1025"
+      MAIL_AUTH: "false"
+      MAIL_STARTTLS: "false"
+      MAIL_FROM: "noreply@magales.app"
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -168,6 +171,12 @@ services:
         condition: service_healthy
     environment:
       MAGALES_INTERNAL_BASE_URL: "http://api:8080/api"
+      # Service account ai-services uses to read/write domain data. No default in the
+      # application any more — it used to fall back to admin/P@ssw0rd. The dev value is
+      # the seeded admin and is explicit here so it stays dev-only; override in any
+      # shared environment.
+      MAGALES_SERVICE_USERNAME: "${MAGALES_SERVICE_USERNAME:-admin}"
+      MAGALES_SERVICE_PASSWORD: "${MAGALES_SERVICE_PASSWORD:-P@ssw0rd}"
       # Must match the api service's AI_SERVICE_HMAC_SECRET (ADR-0004).
       AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
       DEFAULT_PROVIDER: "openrouter"
@@ -209,9 +218,17 @@ services:
       dockerfile: Dockerfile
     container_name: boardhub-ui
     depends_on:
-      - api
+      # nginx resolves its upstream at CONFIG LOAD, so the UI cannot start before the
+      # API is actually up: `host not found in upstream "api"` kills the container.
+      api:
+        condition: service_healthy
     ports:
       - "4200:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:
