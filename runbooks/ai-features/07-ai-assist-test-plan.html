@@ -2045,13 +2045,255 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
 
     <article class="test" data-id="G7-5">
-      <div class="test-top"><span class="tid">G7-5</span><span class="tname">Known limit — the rating is captured, not collected</span><input class="chk" type="checkbox" aria-label="G7-5 passed"></div>
-      <div class="gap"><b>Expected limit, not a bug.</b> A rating is stored on the message and saved with the thread. There is <b>no rating endpoint</b>, so nothing aggregates it yet and nobody is reading the thumbs down. Posting to an endpoint that does not exist would look like it worked, which is worse than not sending. Tick this once you have confirmed a rating survives reopening the conversation, and treat "someone is acting on it" as the next piece of work, not as done.</div>
+      <div class="test-top"><span class="tid">G7-5</span><span class="tname">A rating survives reopening the conversation</span><input class="chk" type="checkbox" aria-label="G7-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Rate an answer, switch to another thread in <b>Chat</b>, come back. The thumb is still lit. The rating is saved with the thread <i>and</i> collected server-side — see section <b>G8</b>, which is what closed the limit this check used to record.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The thumb clears on reopening, or lights on the wrong message after the thread is reloaded.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G8 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G8</span><h2>The answer goes somewhere</h2></div>
+    <p class="sec-note">Item 23 finished — the rating is now collected, not just captured — and the Notion-style insert (<b>+</b>) that files an answer into a governance record. The whole affordance row is <code>copy · insert · helpful · not helpful</code>, all Lucide glyphs through <code>app-icon</code>; no emoji anywhere in the row. Mixed browser and shell.</p>
+
+    <article class="test" data-id="G8-1">
+      <div class="test-top"><span class="tid">G8-1</span><span class="tname">A thumb reaches the server</span><input class="chk" type="checkbox" aria-label="G8-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Rate an answer in the panel, then as an admin: <code>curl -s "$API/ai/assist/feedback?verdict=DOWN" -H "Authorization: Bearer $ADMIN"</code> lists it, carrying the <b>question and the answer text</b>, the route, the language and the tools the run used.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The queue is empty, or a row arrives without the answer text — a verdict with no text is not a defect report, it is a number nobody can act on.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-2">
+      <div class="test-top"><span class="tid">G8-2</span><span class="tname">Re-rating replaces; clearing removes</span><input class="chk" type="checkbox" aria-label="G8-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Thumbs-down then thumbs-up on the same answer leaves <b>one</b> row, verdict <code>UP</code>. Clicking the lit thumb again returns <code>204</code> and the row leaves the queue. The snapshot is soft-deleted, not erased.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Ratings accumulate one row per click, or clearing 404s. Changing your mind is not an error.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-3">
+      <div class="test-top"><span class="tid">G8-3</span><span class="tname">A failed POST does not un-light the thumb</span><input class="chk" type="checkbox" aria-label="G8-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Stop the API (<code>docker stop boardhub-api</code>), rate an answer. The thumb lights and stays lit; no error toast. Collection is behind the click, not in front of it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The thumb flickers back off, or an error appears. The reader's own click is not something to argue with.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-4">
+      <div class="test-top"><span class="tid">G8-4</span><span class="tname">Ratings are private; the queue is privileged</span><input class="chk" type="checkbox" aria-label="G8-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>GET /ai/assist/feedback/mine</code> as an ordinary user → <b>200</b>, their own ratings only. <code>GET /ai/assist/feedback</code> and <code>/summary</code> as the same user → <b>403</b>; as an admin → <b>200</b>. Unauthenticated POST → <b>401</b>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any ordinary user can read the queue. A rating carries the question and answer with it, so it reveals as much as the conversation did.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-5">
+      <div class="test-top"><span class="tid">G8-5</span><span class="tname">The queue and the summary are tenant-scoped</span><input class="chk" type="checkbox" aria-label="G8-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Insert a feedback row against the <code>globex</code> tenant directly in SQL. The <code>acme</code> admin's queue and <code>/summary</code> counts are unchanged. The summary is a JPQL aggregate, which is exactly the shape a Hibernate filter is easiest to miss on.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The other tenant's row appears, or its verdict moves the count. Aggregates leak more quietly than lists.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-6">
+      <div class="test-top"><span class="tid">G8-6</span><span class="tname">An empty queue reads as 0%, not 100%</span><input class="chk" type="checkbox" aria-label="G8-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With no ratings, <code>/summary</code> returns <code>helpfulRate: 0</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It returns 100. An empty numerator must never read as a perfect score on a governance dashboard.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-7">
+      <div class="test-top"><span class="tid">G8-7</span><span class="tname">The + expands; it does not act</span><input class="chk" type="checkbox" aria-label="G8-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Clicking <b>+</b> opens a grouped menu — <i>This record · This page · Meeting notes · Export</i> — and writes nothing. A second click closes it. Filing an answer into a governance record is not a thing to do on one mis-click.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The click itself files something, or the menu stays open after choosing.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-8">
+      <div class="test-top"><span class="tid">G8-8</span><span class="tname">It only offers records the run actually cited</span><input class="chk" type="checkbox" aria-label="G8-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask <span dir="rtl">ما أبرز مخاطر الحوكمة لدينا؟</span> — a general question citing no meeting. The menu offers a task, a meeting note and the exports, and <b>no</b> "add as an agenda item". Then ask about <code>BOD-2026-013</code>: the agenda-item target appears, named for that meeting.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A meeting target appears for an answer that never mentioned one. Same restraint as <code>open_page</code> (G3-2): the menu is built from evidence, not from what exists.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-9">
+      <div class="test-top"><span class="tid">G8-9</span><span class="tname">The most recently cited record wins</span><input class="chk" type="checkbox" aria-label="G8-9 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>In one answer citing BOD-2026-011 then BOD-2026-013, the insert target names <b>013</b> — the same rule the follow-up chips use (G5-2), because "this record" must have one definition, not two that can disagree.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It names the first citation, or disagrees with the chips below it.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-10">
+      <div class="test-top"><span class="tid">G8-10</span><span class="tname">Filing actually lands</span><input class="chk" type="checkbox" aria-label="G8-10 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Choose <i>Add as an agenda item</i> → the item appears under <b>بنود الأعمال</b> with the answer as its description. <i>Create a task from this</i> → a task assigned to you, due in a week. <i>Start a meeting note</i> → a note under محاضر الاجتماعات، linked to the cited meeting when there was one. The + shows a tick briefly.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The tick shows but nothing was written — a confirmation for a write that did not happen is worse than no confirmation.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-11">
+      <div class="test-top"><span class="tid">G8-11</span><span class="tname">No emoji in the row, and no empty glyphs</span><input class="chk" type="checkbox" aria-label="G8-11 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Every control in the row and the menu renders a Lucide SVG through <code>app-icon</code>. The old <code>⬇</code> download buttons are gone — those actions live in the menu now. Icon names are typed as <code>IconName</code>, so an unregistered glyph is a build error rather than an invisible one.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any control shows an emoji, or a menu row shows text with a blank space where its icon should be. An unregistered Lucide name renders an empty element and throws nothing.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G8-12">
+      <div class="test-top"><span class="tid">G8-12</span><span class="tname">Arabic reads as governance work, not as a translation</span><input class="chk" type="checkbox" aria-label="G8-12 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>In Arabic the menu reads <span dir="rtl">إدراج</span> / <span dir="rtl">هذا السجل</span> / <span dir="rtl">إضافته كبند أعمال</span> / <span dir="rtl">إنشاء مهمة منه</span>, and the menu opens on the correct side in RTL.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any key renders raw (<code>ASSIST.INSERT_…</code>), or the menu opens off the edge of the panel in RTL.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G9 ═════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G9</span><h2>One clock across the platform</h2></div>
+    <p class="sec-note">Roadmap item 7. Reminders were already right; this is the other 27 screens catching up. The rule under test: a stored time is the <b>organisation's</b> wall clock, and every screen renders it on the <b>viewer's</b>. Set your machine to a zone that is not the tenant's before starting — with both on <code>Asia/Riyadh</code> every check below passes trivially and proves nothing.</p>
+
+    <article class="test" data-id="G9-1">
+      <div class="test-top"><span class="tid">G9-1</span><span class="tname">A meeting reads the same hour on every screen</span><input class="chk" type="checkbox" aria-label="G9-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Open a meeting from the list, its detail page, the daily agenda and the dashboard. All four show the same time, converted from the org clock to yours.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Two screens disagree. Before item 7 the same meeting could read 09:00 on one and 12:00 on another.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-2">
+      <div class="test-top"><span class="tid">G9-2</span><span class="tname">A due date does not move a day</span><input class="chk" type="checkbox" aria-label="G9-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A task due <code>2026-09-04</code> shows the 4th from any timezone, west of the org included. Date-only values name a day, not a moment, and are never shifted.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It shows the 3rd. This is worse than the bug item 7 fixes — it changes the day a governance deadline falls on.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-3">
+      <div class="test-top"><span class="tid">G9-3</span><span class="tname">A round-trip does not drift</span><input class="chk" type="checkbox" aria-label="G9-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Create a meeting at 09:00 through the UI, reload, reopen. Still 09:00. <code>curl</code> the API and it returns exactly what was sent; the database holds it +3 (see finding 16) and that is expected.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The time moves by the org offset on each save — the signature of a conversion applied twice.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-4">
+      <div class="test-top"><span class="tid">G9-4</span><span class="tname">An empty or malformed date renders blank</span><input class="chk" type="checkbox" aria-label="G9-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A record with no end time shows an empty cell.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any screen prints <code>Invalid Date</code>. A blank cell is honest; that string is not.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-5">
+      <div class="test-top"><span class="tid">G9-5</span><span class="tname">Reminders still behave exactly as they did</span><input class="chk" type="checkbox" aria-label="G9-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Section <b>Z</b> passes unchanged. <code>RemindersService</code> now delegates to the shared helper rather than holding its own copy, so Z is the regression gate on that refactor.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any Z check that passed before now fails. The extraction was meant to change nothing about reminders.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-6">
+      <div class="test-top"><span class="tid">G9-6</span><span class="tname">Known bad data — seeded times read three hours early</span><input class="chk" type="checkbox" aria-label="G9-6 passed"></div>
+      <div class="gap"><b>Expected, and not a bug in this work — finding 27, still open.</b> <code>data-postgres.sql</code> inserts with raw SQL, which skips the <code>jdbc.time_zone</code> shift the application applies, so every <b>seeded</b> meeting, task and decision returns three hours earlier than the row suggests. <code>BOD-2026-013</code> is <code>10:00</code> in psql and <code>07:00</code> from the API. Records you create yourself are correct. Tick this once you have confirmed the discrepancy is confined to seeded rows — if something you created is also off by three hours, that <i>is</i> a bug in item 7.</div>
+    </article>
+
+    <article class="test" data-id="G9-7">
+      <div class="test-top"><span class="tid">G9-7</span><span class="tname">The UI container reports healthy</span><input class="chk" type="checkbox" aria-label="G9-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker ps</code> shows <code>boardhub-ui</code> as <b>(healthy)</b> within ~10s of start. Finding 28: the probe asked for <code>localhost</code>, which resolves to <code>::1</code>, while nginx binds IPv4 only — so it had never once been healthy.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It sits <code>unhealthy</code> while <code>curl localhost:4200</code> returns 200. That combination is the healthcheck being wrong, not the app.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G9-8">
+      <div class="test-top"><span class="tid">G9-8</span><span class="tname">The AI service account has no published default</span><input class="chk" type="checkbox" aria-label="G9-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Comment out <code>MAGALES_SERVICE_*</code> in <code>.env</code>, restart <code>ai-services</code>: the log carries one explicit <code>MAGALES_SERVICE_USERNAME / MAGALES_SERVICE_PASSWORD are not set</code> error and AI answers read as empty. Restore them and it authenticates again. Neither compose file nor <code>.env.example</code> contains a working pair.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It authenticates with the variables unset — something is still supplying the default. That is what made finding 1 read as closed for three days while the credential was unchanged.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G10 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G10</span><h2>A mention you can see, and a record beside the chat</h2></div>
+    <p class="sec-note">Findings 29–31, all reported from the running product. G2 already checks that a mention <i>links</i>; these check that it <b>looks</b> like one, that opening it does not cost you the conversation, and that hovering shows what it points at. Browser-only — none of this is visible from a shell, which is exactly how finding 29 survived a batch.</p>
+
+    <article class="test" data-id="G10-1">
+      <div class="test-top"><span class="tid">G10-1</span><span class="tname">A mention is visibly a link</span><input class="chk" type="checkbox" aria-label="G10-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask <span dir="rtl">ما هي اجتماعات مجلس الإدارة لدي؟</span>. Every meeting named in the answer carries a document glyph and a real underline, <b>including</b> one written inside markdown bold.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It reads as bold text and only reveals itself on hover or on click. That was finding 29 — clickable but invisible, for a whole release.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-2">
+      <div class="test-top"><span class="tid">G10-2</span><span class="tname">The style survives the build</span><input class="chk" type="checkbox" aria-label="G10-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>In DevTools, the anchor's computed <code>text-decoration</code> is <code>underline</code> and the rule shown is from <code>styles*.css</code>, not the component chunk. Check the CSS the <b>container serves</b>, not the source.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The matching rule carries <code>[_ngcontent-…]</code>. Anchors injected with <code>[innerHTML]</code> never have that attribute, so a component-scoped rule cannot reach them however correct its contents are.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-3">
+      <div class="test-top"><span class="tid">G10-3</span><span class="tname">Opening a record keeps the conversation</span><input class="chk" type="checkbox" aria-label="G10-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>From a <b>floating</b> panel, click a meeting mention. The panel docks, the record opens beside it, and the conversation is still there and still scrolled to the same answer.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The record loads underneath the panel, or the panel closes. Try it from fullscreen and floating both — only fullscreen was handled before.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-4">
+      <div class="test-top"><span class="tid">G10-4</span><span class="tname">Hover shows what the link points at</span><input class="chk" type="checkbox" aria-label="G10-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Hovering a mention shows a card with the record type, its reference (BOD-2026-013) and its title, plus an <b>Open</b> action. The card stays while the pointer moves onto it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It flickers shut as you move toward it, or jitters along a multi-word Arabic title — it is positioned from the anchor's box, not the pointer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-5">
+      <div class="test-top"><span class="tid">G10-5</span><span class="tname">The card cannot disagree with the answer</span><input class="chk" type="checkbox" aria-label="G10-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>No network request fires on hover — everything shown comes from the citation the answer already carries. The title follows the reading language, matching the mention itself.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The card fetches, or shows a title that differs from the record named in the sentence.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-6">
+      <div class="test-top"><span class="tid">G10-6</span><span class="tname">A record title cannot break out of an attribute</span><input class="chk" type="checkbox" aria-label="G10-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A record titled <code>Budget &amp; &lt;Risk&gt; "2026"</code> renders its mention normally and the emitted <code>data-title</code> is fully escaped.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Raw <code>&lt;</code> or a bare quote appears inside the attribute. Finding 31: escapeAttr handled only <code>&amp;</code> and <code>"</code> while it saw nothing but validated routes.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-7">
+      <div class="test-top"><span class="tid">G10-7</span><span class="tname">Arabic, RTL</span><input class="chk" type="checkbox" aria-label="G10-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The glyph sits on the correct side of the mention in RTL, and the hover card opens within the panel rather than off the edge of the window.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The glyph collides with the text, or the card is clipped.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G10-8">
+      <div class="test-top"><span class="tid">G10-8</span><span class="tname">A plain question still links nothing it should not</span><input class="chk" type="checkbox" aria-label="G10-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>An answer citing no record contains no mentions and shows no cards. The preview is built from citations, so nothing to cite means nothing to preview.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Ordinary words become links now that they are more visible. The regression G2 guarded against is easier to notice, not less likely.</p></div>
+      </div>
     </article>
   </section>
 
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b>, <b>G9</b> and <b>G10</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
