@@ -1813,8 +1813,8 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
       <div class="test-top"><span class="tid">G2-1</span><span class="tname">A reference number in the answer is a link</span><input class="chk" type="checkbox" aria-label="G2-1 passed"></div>
       <div class="prompt"><span class="turn" dir="rtl">اعرض لي اجتماعات مجلس الإدارة القادمة</span><button class="copy" type="button">Copy</button></div>
       <div class="meta">
-        <div><p class="lbl pass">Expect</p><p>Reference numbers in the body — <code>BOD-2026-013</code> and the like — render underlined and clickable, and open that meeting. So do the <code>[n]</code> markers. The sources list at the foot still appears; this is in addition to it, not instead.</p></div>
-        <div><p class="lbl fail">Fails if</p><p>The codes are plain text. That is the state finding 22 describes: the reader is told to go and search for a number that a link already existed for.</p></div>
+        <div><p class="lbl pass">Expect</p><p>Reference numbers in the body — <code>BOD-2026-013</code> and the like — render underlined and clickable, and open that meeting. A <code>[n]</code> marker renders as the record's <b>name with a page glyph</b>, not as the number: the citation carries the title, so the reader sees what it points at. In English the chip shows the English title, in Arabic the Arabic one. The sources list at the foot still appears; this is in addition to it, not instead.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The codes are plain text, or a marker still reads <code>[7]</code>. That is the state finding 22 describes: the reader is told to go and search for a number that a link already existed for. Also fails if an English reader gets an Arabic chip, or vice versa.</p></div>
       </div>
     </article>
 
@@ -1862,8 +1862,8 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
       <div class="test-top"><span class="tid">G3-1</span><span class="tname">"Open this meeting" opens it</span><input class="chk" type="checkbox" aria-label="G3-1 passed"></div>
       <div class="prompt"><span class="turn" dir="rtl">افتح صفحة الاجتماع BOD-2026-013</span><button class="copy" type="button">Copy</button></div>
       <div class="meta">
-        <div><p class="lbl pass">Expect</p><p><code>open_page</code> in the tool trace and the browser lands on that meeting. The assistant says it opened it. This is the exact request that produced <span class="ar-inline">لا أستطيع فتح الصفحات مباشرة</span> and a set of directions.</p></div>
-        <div><p class="lbl fail">Fails if</p><p>It still explains how to navigate there by hand, or navigates somewhere else.</p></div>
+        <div><p class="lbl pass">Expect</p><p><code>open_page</code> in the step trace and the browser lands on that meeting — <b>with the page visible</b>. Ask it as the very first thing you say, before anything has been listed: the record is looked up, not read out of what was already cited. This is the exact request that produced <span class="ar-inline">لا أستطيع فتح الصفحات مباشرة</span> and a set of directions.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It still explains how to navigate there by hand, or navigates somewhere else, or says <span class="ar-inline">لم أتمكن من العثور على السجل</span> on the first try and only succeeds after listing the meetings. <b>And it fails if the assistant says it opened the page while you are still looking at the conversation</b> — a fullscreen panel is the full viewport, so routing behind it changes the page and shows you nothing. Opening means the page is visible.</p></div>
       </div>
     </article>
 
@@ -1912,6 +1912,22 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
       <div class="meta">
         <div><p class="lbl pass">Expect</p><p>Between one tool finishing and the next starting, the chip shows <b>Thinking…</b> — it does not blank out and reappear. The row keeps its height throughout.</p></div>
         <div><p class="lbl fail">Fails if</p><p>The chip disappears between calls, or the conversation jumps as it comes and goes.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G4-5">
+      <div class="test-top"><span class="tid">G4-5</span><span class="tname">The finished answer keeps a collapsed trace, not a row of tool names</span><input class="chk" type="checkbox" aria-label="G4-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Under a finished answer: a single <b>N steps</b> line, collapsed. Expanding it lists the work in the same words the live chip used. Repeated calls of one kind appear once — three <code>list_*</code> calls in a row are one act of reading the papers.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Chips reading <code>list meetings</code> or <code>get meeting</code> are still there. The live chip and this row are <b>different code paths</b>; fixing only the first leaves raw identifiers exactly where the 4 September screenshot showed them.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G4-6">
+      <div class="test-top"><span class="tid">G4-6</span><span class="tname">The trace is available, not imposed</span><input class="chk" type="checkbox" aria-label="G4-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Collapsed by default, and each message remembers its own state — expanding one does not expand the rest. The caret rotates; it does not flip to a different glyph, so Arabic needs no separate rule.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It opens by default, or toggling one opens all of them. Someone who wants the answer should not have to scroll past our tool loop to reach it.</p></div>
       </div>
     </article>
 
