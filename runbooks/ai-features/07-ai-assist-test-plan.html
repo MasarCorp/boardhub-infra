@@ -2333,8 +2333,78 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G12 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G12</span><h2>Standing, delegation, and a file that is really there</h2></div>
+    <p class="sec-note">Findings 36–39, plus the brief itself (roadmap item 5). Two of these check that a person <b>stops</b> seeing something — the hardest kind to notice by using the product normally, because nothing appears broken to whoever still has access. Set up by changing a membership's status directly in the database; there is no UI for resigning a member yet.</p>
+
+    <article class="test" data-id="G12-1">
+      <div class="test-top"><span class="tid">G12-1</span><span class="tname">A member gets their own brief</span><input class="chk" type="checkbox" aria-label="G12-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On a meeting, <b>Brief me</b> opens the panel and answers with what you must decide, what you owe, and what changed since this board last sat. The role shown is your real membership role.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Two members see the same brief. The point of the feature is that the chair's page and an audit member's page differ.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-2">
+      <div class="test-top"><span class="tid">G12-2</span><span class="tname">A resigned director stops receiving briefs</span><input class="chk" type="checkbox" aria-label="G12-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>UPDATE memberships SET status='TERMINATED'</code> for a member, then request their brief → <b>403</b>. Set it back to ACTIVE → <b>200</b>. The membership row is still there both times.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The terminated member gets 200. Finding 37: the row is deliberately kept so history survives, so <code>isDeleted</code> is the wrong question — the status is the answer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-3">
+      <div class="test-top"><span class="tid">G12-3</span><span class="tname">Resigning beats being on the invite list</span><input class="chk" type="checkbox" aria-label="G12-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A terminated member who is <b>also</b> an attendee of the meeting still gets 403. An external advisor with an attendee row and <b>no</b> membership at all still gets 200.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The attendee row rescues the resigned member. Being on the invite list of a meeting you resigned before does not put you back on the board.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-4">
+      <div class="test-top"><span class="tid">G12-4</span><span class="tname">Delegated work reaches the person carrying it</span><input class="chk" type="checkbox" aria-label="G12-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Set <code>delegated_to_id</code> on a task to another member. It leaves the original assignee's brief and appears in the delegate's. The task's <code>assignee_id</code> is unchanged.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It shows in both, or in neither. Finding 38: a delegated task keeps its original assignee, which is how the platform records who it was raised against.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-5">
+      <div class="test-top"><span class="tid">G12-5</span><span class="tname">The brief names nobody else</span><input class="chk" type="checkbox" aria-label="G12-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Search the JSON for any other member's name, task title or ballot choice — none. Readiness is counts only (attendees, voting members, confirmed), and a vote reports <b>whether</b> you voted, never what.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of it appears. <code>SECRET_BALLOT</code> exists, and a brief must not become a way to read the attendance list of a meeting you were merely invited to.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-6">
+      <div class="test-top"><span class="tid">G12-6</span><span class="tname">Only an admin can ask for someone else's brief</span><input class="chk" type="checkbox" aria-label="G12-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>?userId=&lt;someone else&gt;</code> as an ordinary member returns <b>your own</b> brief, not theirs. As a TENANT_ADMIN it returns theirs. Unauthenticated → <b>401</b>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>An ordinary member reads a colleague's brief — it carries their tasks, their obligations and whether they have voted.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-7">
+      <div class="test-top"><span class="tid">G12-7</span><span class="tname">An uploaded document has a file behind it</span><input class="chk" type="checkbox" aria-label="G12-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Upload a PDF or text file through the Library dialog. <code>GET /documents/{id}/content</code> returns <b>200</b> with the same bytes, and the object exists in MinIO under <code>&lt;tenant&gt;/documents/</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The row appears and the download 404s. That was finding 36 — the dialog posted metadata with a <code>filePath</code> invented from the file's name.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-8">
+      <div class="test-top"><span class="tid">G12-8</span><span class="tname">Confidential means confidential</span><input class="chk" type="checkbox" aria-label="G12-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Tick <b>confidential</b> in the upload dialog. The created document comes back with <code>isConfidential: true</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It is false. Finding 39: the endpoint hardcoded false, so every paper uploaded as confidential was registered as public.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September; <b>G12</b> on 5 September for standing, delegation and the Library upload for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
