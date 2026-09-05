@@ -113,3 +113,45 @@ The build/tag/push commands themselves live in each app repo's README — keep t
 - [`../Magales-ui/README.md`](../Magales-ui/README.md) — UI image build & push
 - [`PHASE-1-DAY-1.md`](./PHASE-1-DAY-1.md) — full Day-1 setup
 - [`MAGALES-MVP-PLAN.md`](./MAGALES-MVP-PLAN.md) — overall plan, including Day-3 ECR + CI
+
+---
+
+## Planning: `/plan` — design, then refute
+
+Before building anything non-trivial, run the work through `plan-and-verify`:
+
+```
+/plan roadmap item 4 — auto-linking on upload
+```
+
+or directly, for several items at once:
+
+```
+Workflow({ name: "plan-and-verify",
+           args: ["roadmap item 3 — obligation drift", "fix the Library upload"] })
+```
+
+Each item gets a design agent that reads the real code and returns a plan citing file:line, and
+then a **skeptic whose job is to refute that plan** — grepping for every endpoint, field, enum and
+method it named.
+
+**Why it is worth the run.** On 4 September this was run against three roadmap items. All three
+plans came back `NEEDS_WORK`, with **twenty things named that do not exist**: `ApiService.get`,
+`AgendaItem.responsibleUserId`, `@Mock` on a static method, repository finders assumed to filter
+soft-deletes that do not. Roughly 19 minutes of machine time, no engineer waiting, and every one of
+them would otherwise have been found later and more expensively.
+
+The failure it catches is **plausibility, not sloppiness**. Every invented name was the name the
+API should have had — which is exactly why reading the plan cannot catch it and grepping can. It is
+the same shape as most of the findings in `AI-ROADMAP.md`: raw Lucide glyphs where `app-icon` takes
+semantic names, `BusinessException` where the convention was `ResponseStatusException`, a fix
+scoped to a text node where markdown puts a `<strong>`.
+
+**Read the verdicts before writing code.** Treat `scopingHoles` and `restraintHoles` as blocking —
+those are the ones that become privacy incidents rather than bug reports. `weakTests` names a
+proposed test that could pass without exercising anything, which reads as coverage and is worse
+than no test.
+
+Design agents are read-only, and implementation stays **sequential** — features here touch the same
+few files (the agent's tool list, the assist panel, the API), so parallel edits only conflict. What
+parallelises well is the expensive part: reading the code.
