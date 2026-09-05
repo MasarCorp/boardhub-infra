@@ -155,3 +155,7 @@ than no test.
 Design agents are read-only, and implementation stays **sequential** — features here touch the same
 few files (the agent's tool list, the assist panel, the API), so parallel edits only conflict. What
 parallelises well is the expensive part: reading the code.
+
+**Two gotchas.** `meta` must be a *pure literal* — no string concatenation, no variables — or the
+run is rejected before it starts. And a newly added workflow is not discoverable by name until the
+session reloads its registry; until then run it with `{scriptPath: ".claude/workflows/plan-and-verify.js"}`.
