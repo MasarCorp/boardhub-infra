@@ -2403,8 +2403,38 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G13 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G13</span><h2>A token the backend has stopped accepting</h2></div>
+    <p class="sec-note">Finding 40. The service token is cached for six hours, which handles a token growing <b>old</b> but not one invalidated <b>early</b> — a backend restart, a rotated secret, a disabled account. In that window every read tool fails and the assistant answers "there is a technical problem with the system", so this reads to a user as the whole product being down. Restarting the container clears it, which is exactly why the cause stayed invisible. Set up by rotating the API's <code>JWT_SECRET</code> and restarting <code>api</code> only — do not restart <code>ai-services</code>, or you destroy the condition you are testing.</p>
+
+    <article class="test" data-id="G13-1">
+      <div class="test-top"><span class="tid">G13-1</span><span class="tname">The assistant recovers from a rejected token on its own</span><input class="chk" type="checkbox" aria-label="G13-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Rotate <code>JWT_SECRET</code> in the API's environment and restart <b>api</b> alone, so the token <code>ai-services</code> is holding is now invalid. Ask <span class="ar-inline">كم عدد الاجتماعات؟</span> The assistant answers with the real count, and <code>docker compose logs ai-services</code> shows <code>Magales rejected the service token … re-authenticating</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It apologises that there is a technical problem with the system, or keeps failing until <code>ai-services</code> is restarted. That is the reported bug: <code>invalidate_token</code> existed for exactly this and was called from nowhere.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G13-2">
+      <div class="test-top"><span class="tid">G13-2</span><span class="tname">Recovery is once per call, not a login loop</span><input class="chk" type="checkbox" aria-label="G13-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Point <code>MAGALES_SERVICE_PASSWORD</code> at a wrong value and restart <b>ai-services</b>, then ask any question that reads data. It fails cleanly, and the logs show <b>one</b> re-authentication for that call — not a stream of login attempts against the API.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>/auth/login</code> is hit repeatedly. A second 401 means the credentials themselves are wrong, and retrying that turns a misconfiguration into a login flood. Restore the password afterwards.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G13-3">
+      <div class="test-top"><span class="tid">G13-3</span><span class="tname">The scheduled snapshot recovers too, not just the chat</span><input class="chk" type="checkbox" aria-label="G13-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With the token invalidated the same way as G13-1, call the insights endpoint for the tenant → <b>200</b> with real figures. The Insights page loads.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Insights 500s while the chat works. <code>compute_insights</code> runs on a schedule as well as on demand, so a stale token there fails unattended where nobody is watching for it — both call sites go through <code>request_with_auth</code> for this reason.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September; <b>G12</b> on 5 September for standing, delegation and the Library upload for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, and <b>G13</b> the same day for recovering from a service token the backend has stopped accepting; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
