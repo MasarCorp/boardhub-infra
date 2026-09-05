@@ -2433,8 +2433,78 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G14 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G14</span><h2>A recording you can lose, and a log that says so</h2></div>
+    <p class="sec-note">Findings 50–53. All but the first are about <b>evidence</b> rather than behaviour: a 12-minute recording was lost and the only trace anywhere was the user noticing it missing from the list. Read the logs with <code>docker compose -f docker-compose.dev.yml logs ai-services</code> and <code>… api</code>. G14-1 is the one that must be re-run after any change to <code>nginx.conf</code> or the UI Dockerfile.</p>
+
+    <article class="test" data-id="G14-1">
+      <div class="test-top"><span class="tid">G14-1</span><span class="tname">A long recording survives transcription</span><input class="chk" type="checkbox" aria-label="G14-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Record <b>at least 3 minutes</b> through the app on <code>:4200</code> (the nginx-served build, not <code>ng serve</code> — the bug only exists there) and stop. Transcription takes well over 60s, the notes are generated, and the app navigates to the new note.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The browser reports a failure while <code>docker compose logs ai-services</code> shows <code>POST /v1/transcribe … 200 OK</code>. That mismatch <i>is</i> finding 50: nginx cut the caller at its 60s default while the work completed. Check <code>proxy_read_timeout</code> is present in <code>location /api/</code>.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-2">
+      <div class="test-top"><span class="tid">G14-2</span><span class="tname">The audio is logged before the work starts</span><input class="chk" type="checkbox" aria-label="G14-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Every recording logs <code>received &lt;file&gt; (&lt;type&gt;) for tenant &lt;t&gt;: N KB, language=…, provider=…</code> <b>before</b> transcription runs, then <code>transcribed …: N KB audio -&gt; C chars / W words (D distinct) in Ts via &lt;engine&gt;</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Either line is missing. The browser holds the only copy of the audio until the pipeline succeeds, so the first line is the sole evidence it arrived and how much of it.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-3">
+      <div class="test-top"><span class="tid">G14-3</span><span class="tname">A repetition loop is named, not just stored</span><input class="chk" type="checkbox" aria-label="G14-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Record 3+ minutes with the microphone <b>muted</b>. The log carries <code>DEGENERATE TRANSCRIPT … N words but only D distinct</code>, naming a silent or wrong microphone as the likely cause.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A note is saved with no warning logged. Finding 52: 54,612 words from a vocabulary of five were stored and summarised like a real meeting. <b>Known gap</b> — the note is still saved; only the warning exists today.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-4">
+      <div class="test-top"><span class="tid">G14-4</span><span class="tname">Ordinary minutes are never flagged</span><input class="chk" type="checkbox" aria-label="G14-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A normal recording of real speech, in Arabic or English, logs its counts and <b>no</b> <code>DEGENERATE</code> line. <code>uv run pytest tests/test_transcript_health.py</code> passes — it covers the real lost transcript, Arabic minutes, English prose, a short repetitive answer and empty input.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A real transcript trips the warning. A guard that cries wolf on genuine minutes gets ignored, and then the real loop passes unnoticed too.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-5">
+      <div class="test-top"><span class="tid">G14-5</span><span class="tname">A failed transcription is no longer silent</span><input class="chk" type="checkbox" aria-label="G14-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Post a non-audio file to <code>/v1/transcribe</code>. Within a second the log carries <code>received &lt;file&gt; …</code> and <code>openrouter transcription failed after Xs (…); falling back to whisper</code>. <b>Abort the request there</b> — see G14-8. If you let it run to completion the final failure logs the exception with tenant, filename and size, and returns <b>502</b> <code>asr_error</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing is logged. That was the old behaviour: the browser showed "could not process the notes" and the server said nothing at all — no line for the request, the failure, or the fallback.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-6">
+      <div class="test-top"><span class="tid">G14-6</span><span class="tname">The browser says which step failed</span><input class="chk" type="checkbox" aria-label="G14-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Force a failure (stop <code>ai-services</code>, then stop a recording). The console shows <code>[meeting-recording] failed during "transcribing"</code> with the HTTP status, and a cut connection during transcription offers the paste-transcript route rather than the generic message.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing reaches the console. Finding 51: the bare <code>catch</code> is why the first lost recording left no trace a user could hand over.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-7">
+      <div class="test-top"><span class="tid">G14-7</span><span class="tname">A rejected credential does not read as boot noise</span><input class="chk" type="checkbox" aria-label="G14-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On a normal boot, ai-services logs <code>Magales not reachable yet … expected during startup</code>. Set <code>MAGALES_SERVICE_PASSWORD</code> wrong and restart: it logs <code>Magales REJECTED the service account … HTTP 401</code> at <b>ERROR</b>, saying it will not retry its way out. Restore the password afterwards.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Both cases print the same sentence. Finding 53: the insights job fires before the API is reachable on every boot, so that line is permanent noise — and a real credential failure hid inside it, which is finding 40 one layer down.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-8">
+      <div class="test-top"><span class="tid">G14-8</span><span class="tname">The Whisper fallback has a model to fall back to</span><input class="chk" type="checkbox" aria-label="G14-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker exec boardhub-ai-services find / -name "model.bin" 2&gt;/dev/null</code> finds a cached Whisper model, or a named volume mounts one. Every transcription failure routes to <code>transcribe_whisper</code>, so the model must already be there.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing is found — which is the state today (finding 54). The first fallback then downloads ~1.5 GB <b>inside the request</b> while the caller waits, so a transient OpenRouter error turns into a request that cannot finish before any proxy timeout. It compounds finding 50 rather than rescuing it.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, and <b>G13</b> the same day for recovering from a service token the backend has stopped accepting; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
