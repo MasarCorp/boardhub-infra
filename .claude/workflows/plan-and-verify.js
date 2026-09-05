@@ -1,10 +1,7 @@
 export const meta = {
   name: 'plan-and-verify',
   description: 'Design each work item against the real code, then have a skeptic try to refute the plan',
-  whenToUse:
-    'Before building anything non-trivial in BoardHub. Pass the items as args: ' +
-    'Workflow({name: "plan-and-verify", args: ["roadmap item 3 — obligation drift", "fix the Library upload"]}). ' +
-    'Returns a grounded plan plus a verdict per item; read the verdicts before writing code.',
+  whenToUse: 'Before building anything non-trivial in BoardHub. Pass one string per work item as args. Returns a grounded plan plus a skeptic verdict per item; read the verdicts before writing any code.',
   phases: [
     { title: 'Design', detail: 'one agent per item, reading the real code' },
     { title: 'Verify', detail: 'a skeptic greps for everything the plan named' },
