@@ -2503,8 +2503,86 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G15 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G15</span><h2>A substitute who is really there, and an enum the database refused</h2></div>
+    <p class="sec-note">Findings 55, 58, and the readiness half of 56. The browser shipped first: <code>bfce195 feat(meetings): leadership quorum rule + substitute nomination</code> merged to <code>develop</code> calling <code>PATCH /meetings/{id}/attendees/me/delegate</code> against an endpoint nobody had built, so every check here is written <b>from the meeting screen</b> rather than from curl — the seam is the thing that was missing. Run the whole section twice, once in English and once in العربية; G15-2 is the dedicated Arabic pass but the status chip and the substitute line are localised everywhere they appear. Requires the <b>Postgres</b> stack, not H2 — G15-9 exists precisely because the H2 suite cannot see the bug. Note that <b>G12-4 is a different feature</b>: that is task delegation, this is attendance.</p>
+
+    <article class="test" data-id="G15-1">
+      <div class="test-top"><span class="tid">G15-1</span><span class="tname">A member nominates a substitute</span><input class="chk" type="checkbox" aria-label="G15-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Signed in as an invited member of a <code>SCHEDULED</code> meeting, the header carries <b>Nominate Substitute</b>. It opens a picker, search narrows it, and <b>Nominate</b> returns <b>200</b>. The member's row now reads <b>Substitute nominated</b> with <code>Substitute: &lt;name&gt;</code> beneath it. <b>Reload the page</b> — both are still there, drawn from <code>delegatedToUserId</code> / <code>delegatedToNameAr</code> / <code>delegatedToNameEn</code> on the attendee response.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The PATCH 404s. That is finding 55 as it shipped: the UI called an endpoint that did not exist, while <code>delegated_to_user_id</code> and its FK <code>fk_attendees_delegate</code> had been on the entity all along — the storage was built and never exposed. If the row renders but empties on reload, the mapper is not carrying the three fields.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-2">
+      <div class="test-top"><span class="tid">G15-2</span><span class="tname">The same nomination in Arabic</span><input class="chk" type="checkbox" aria-label="G15-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Switch to العربية and repeat G15-1. The button reads <b>ترشيح بديل</b>, the dialog <b>ترشيح بديل لحضور الاجتماع</b>, its action <b>ترشيح</b>, the resulting chip <b>رشّح بديلاً</b> and the line beneath the name <b>البديل: &lt;الاسم&gt;</b>. The substitute's <b>Arabic</b> name is shown, and the layout stays RTL with the chip on the correct side.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of it falls back to English, or the Latin name appears where the Arabic one exists. The response carries both names for exactly this reason; picking between them is the UI's job and it is the half that gets missed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-3">
+      <div class="test-top"><span class="tid">G15-3</span><span class="tname">The picker never offers someone already invited</span><input class="chk" type="checkbox" aria-label="G15-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Everyone already on the attendee list is absent from the picker. A colleague who is <b>not</b> invited to this meeting <b>is</b> offered, including one with no membership of the board at all — that is how an external advisor or a technical stand-in gets nominated.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>An existing attendee can be chosen: a seat would then be counted twice toward the quorum, once in their own right and once as somebody's proxy. If no non-member is ever offered, the picker is over-filtering and the external-advisor case is unreachable.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-4">
+      <div class="test-top"><span class="tid">G15-4</span><span class="tname">A member cannot stand in for themselves</span><input class="chk" type="checkbox" aria-label="G15-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Nominating yourself returns <b>400</b> <code>INVALID_ARGUMENT</code>, <i>"A member cannot nominate themselves as their own substitute"</i>, and the browser surfaces the server's message rather than a generic one. The picker should not offer you in the first place, since you are on the attendee list — this check is that the server does not rely on that.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It succeeds. The row would then read as both present and delegated, and the quorum count has no defensible answer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-5">
+      <div class="test-top"><span class="tid">G15-5</span><span class="tname">A resigned director cannot be nominated</span><input class="chk" type="checkbox" aria-label="G15-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Set a board member's membership to <code>TERMINATED</code> in the database (there is still no UI for resigning — same setup as G12-2), leave them off this meeting's invite list, then nominate them. <b>403</b>, <i>"That member's membership of this board is no longer active"</i>. <code>INACTIVE</code> and <code>EXPIRED</code> behave the same way.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The nomination is accepted. Resigning is a status change with the row kept, so a director who left in March would otherwise carry a vote in April. Someone with <b>no</b> membership row must still pass — the guard is on a membership that has lapsed, not on the absence of one, which is the same distinction <code>MeetingBriefingService</code> draws for standing in findings 35 and 37.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-6">
+      <div class="test-top"><span class="tid">G15-6</span><span class="tname">A finished meeting refuses a substitute</span><input class="chk" type="checkbox" aria-label="G15-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On a <code>COMPLETED</code> or <code>CANCELLED</code> meeting the nomination returns <b>409</b> <code>ILLEGAL_STATE</code>, naming the status. <code>DRAFT</code>, <code>SCHEDULED</code>, <code>POSTPONED</code> and <code>IN_PROGRESS</code> all still accept one — a substitute arriving after the sitting has opened is the ordinary case, not an edge case.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>IN_PROGRESS</code> is refused, or a completed meeting accepts. Once minutes exist they are the record, and attendance rewritten behind them is a governance problem rather than a data one.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-7">
+      <div class="test-top"><span class="tid">G15-7</span><span class="tname">Cancelling puts the seat back to PENDING</span><input class="chk" type="checkbox" aria-label="G15-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With a substitute nominated the header offers <b>Cancel Substitute</b> (<b>إلغاء ترشيح البديل</b>). It asks for confirmation, then the row returns to <b>Pending</b>: <code>delegatedToUserId</code> is null, and <code>confirmedAt</code> is cleared too. The <b>Nominate Substitute</b> button comes back.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The status stays <code>DELEGATED</code>, or <code>confirmedAt</code> keeps its old timestamp. Cancelling is a withdrawal of the answer, not a correction to it — leaving the timestamp would show the member as having replied at a moment they have just retracted.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-8">
+      <div class="test-top"><span class="tid">G15-8</span><span class="tname">The quorum card and the brief agree</span><input class="chk" type="checkbox" aria-label="G15-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Note the meeting screen's quorum figure, nominate one substitute, and watch it rise by one. Now ask for the pre-meeting brief (G12-1) and read its readiness line: <b>the same number</b>. <code>readiness()</code> counts <code>CONFIRMED</code>, <code>DELEGATED</code>, <code>ATTENDED</code> and <code>ATTENDED_REMOTE</code>, which is the set the quorum card counts.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The two differ by the number of delegated seats. The chair reads whichever they happen to open and decides whether the sitting goes ahead on it. <b>Known gap</b> — this closes only the readiness half of finding 56; the quorum <i>rule</i> itself, including "chairman and vice-chairman must be present", still lives in <code>meeting-detail.component.ts</code> and no server-side caller enforces it.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-9">
+      <div class="test-top"><span class="tid">G15-9</span><span class="tname">DELEGATED survives Postgres, not just H2</span><input class="chk" type="checkbox" aria-label="G15-9 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Against a database that <b>already existed</b> before <code>DELEGATED</code> was added — not a freshly created one — G15-1 succeeds. Confirm the constraint was widened: <code>docker compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boardhub -c "\d+ meeting_attendees"</code> shows <code>meeting_attendees_attendance_status_check</code> listing <code>DELEGATED</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The PATCH returns <b>500</b> with SQLSTATE <code>23514</code>. That is finding 58, and it is why this check is worth more than it looks: Hibernate writes a CHECK constraint per <code>@Enumerated(STRING)</code> column at table creation and <code>ddl-auto: update</code> never revises it, so a new enum value compiles, passes the H2 suite — <code>create-drop</code> regenerates the constraint from the current enum every run — and fails only against a real database. <b>77 such constraints exist.</b> The repair lives in <code>data-postgres.sql</code> rather than a migration because Flyway has never run in this profile (finding 48), so <b>every future enum value needs the same block</b> until that is fixed.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
