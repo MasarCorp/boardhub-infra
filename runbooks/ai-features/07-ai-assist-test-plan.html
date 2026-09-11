@@ -2201,8 +2201,11 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
 
     <article class="test" data-id="G9-6">
-      <div class="test-top"><span class="tid">G9-6</span><span class="tname">Known bad data — seeded times read three hours early</span><input class="chk" type="checkbox" aria-label="G9-6 passed"></div>
-      <div class="gap"><b>Expected, and not a bug in this work — finding 27, still open.</b> <code>data-postgres.sql</code> inserts with raw SQL, which skips the <code>jdbc.time_zone</code> shift the application applies, so every <b>seeded</b> meeting, task and decision returns three hours earlier than the row suggests. <code>BOD-2026-013</code> is <code>10:00</code> in psql and <code>07:00</code> from the API. Records you create yourself are correct. Tick this once you have confirmed the discrepancy is confined to seeded rows — if something you created is also off by three hours, that <i>is</i> a bug in item 7.</div>
+      <div class="test-top"><span class="tid">G9-6</span><span class="tname">The database and the API agree</span><input class="chk" type="checkbox" aria-label="G9-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>psql</code> and <code>GET /api/meetings</code> report the <b>same</b> time for <code>BOD-2026-013</code> — 10:00 in both. Create a meeting at 09:00 and the row also says 09:00. <code>hibernate.jdbc.time_zone</code> is gone from all three profiles (findings 16 and 27).</p></div>
+        <div><p class="lbl fail">Fails if</p><p>They differ by three hours. That was the old behaviour: JPA round-trips were consistent, but raw SQL never took the shift, so every seeded record read three hours early.</p></div>
+      </div>
     </article>
 
     <article class="test" data-id="G9-7">
@@ -2292,8 +2295,294 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G11 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G11</span><h2>One name per record</h2></div>
+    <p class="sec-note">Finding 33. A citation marker renders as the record's title, so a line that already named the record printed it twice — invisible until mentions became visible. Browser checks.</p>
+
+    <article class="test" data-id="G11-1">
+      <div class="test-top"><span class="tid">G11-1</span><span class="tname">A listed meeting is named once</span><input class="chk" type="checkbox" aria-label="G11-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Ask <span dir="rtl">ما هي اجتماعات مجلس الإدارة لدي؟</span>. Each bullet reads <i>title — CODE · status · date</i> with the title linked <b>once</b>, and no trailing repeat of the same title.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The title appears twice, or a bare <code>[3]</code> is left where the repeat was. Dropping the marker means dropping its text too.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G11-2">
+      <div class="test-top"><span class="tid">G11-2</span><span class="tname">A record not otherwise named still gets its mention</span><input class="chk" type="checkbox" aria-label="G11-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>In prose — "the board approved it [1]" — the marker still renders as the record's name and links. Only a marker whose record is <b>already linked on that line</b> is dropped.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Citations vanish from prose answers. That would trade one bug for a worse one: claims with nothing to click through to.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G11-3">
+      <div class="test-top"><span class="tid">G11-3</span><span class="tname">Each line judges itself</span><input class="chk" type="checkbox" aria-label="G11-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A record named on several bullets links on each of them. "Already said" resets at every list item and paragraph.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only the first bullet links. The scope is the block, not the answer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G11-4">
+      <div class="test-top"><span class="tid">G11-4</span><span class="tname">The model's own words are never deleted</span><input class="chk" type="checkbox" aria-label="G11-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A reference code the model wrote twice in one line still appears twice. Only the marker we inserted is removed.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any text the model wrote disappears. Removing our own footnote is one thing; editing the answer is another.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G12 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G12</span><h2>Standing, delegation, and a file that is really there</h2></div>
+    <p class="sec-note">Findings 36–39, plus the brief itself (roadmap item 5). Two of these check that a person <b>stops</b> seeing something — the hardest kind to notice by using the product normally, because nothing appears broken to whoever still has access. Set up by changing a membership's status directly in the database; there is no UI for resigning a member yet.</p>
+
+    <article class="test" data-id="G12-1">
+      <div class="test-top"><span class="tid">G12-1</span><span class="tname">A member gets their own brief</span><input class="chk" type="checkbox" aria-label="G12-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On a meeting, <b>Brief me</b> opens the panel and answers with what you must decide, what you owe, and what changed since this board last sat. The role shown is your real membership role.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Two members see the same brief. The point of the feature is that the chair's page and an audit member's page differ.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-2">
+      <div class="test-top"><span class="tid">G12-2</span><span class="tname">A resigned director stops receiving briefs</span><input class="chk" type="checkbox" aria-label="G12-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>UPDATE memberships SET status='TERMINATED'</code> for a member, then request their brief → <b>403</b>. Set it back to ACTIVE → <b>200</b>. The membership row is still there both times.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The terminated member gets 200. Finding 37: the row is deliberately kept so history survives, so <code>isDeleted</code> is the wrong question — the status is the answer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-3">
+      <div class="test-top"><span class="tid">G12-3</span><span class="tname">Resigning beats being on the invite list</span><input class="chk" type="checkbox" aria-label="G12-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A terminated member who is <b>also</b> an attendee of the meeting still gets 403. An external advisor with an attendee row and <b>no</b> membership at all still gets 200.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The attendee row rescues the resigned member. Being on the invite list of a meeting you resigned before does not put you back on the board.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-4">
+      <div class="test-top"><span class="tid">G12-4</span><span class="tname">Delegated work reaches the person carrying it</span><input class="chk" type="checkbox" aria-label="G12-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Set <code>delegated_to_id</code> on a task to another member. It leaves the original assignee's brief and appears in the delegate's. The task's <code>assignee_id</code> is unchanged.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It shows in both, or in neither. Finding 38: a delegated task keeps its original assignee, which is how the platform records who it was raised against.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-5">
+      <div class="test-top"><span class="tid">G12-5</span><span class="tname">The brief names nobody else</span><input class="chk" type="checkbox" aria-label="G12-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Search the JSON for any other member's name, task title or ballot choice — none. Readiness is counts only (attendees, voting members, confirmed), and a vote reports <b>whether</b> you voted, never what.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of it appears. <code>SECRET_BALLOT</code> exists, and a brief must not become a way to read the attendance list of a meeting you were merely invited to.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-6">
+      <div class="test-top"><span class="tid">G12-6</span><span class="tname">Only an admin can ask for someone else's brief</span><input class="chk" type="checkbox" aria-label="G12-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>?userId=&lt;someone else&gt;</code> as an ordinary member returns <b>your own</b> brief, not theirs. As a TENANT_ADMIN it returns theirs. Unauthenticated → <b>401</b>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>An ordinary member reads a colleague's brief — it carries their tasks, their obligations and whether they have voted.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-7">
+      <div class="test-top"><span class="tid">G12-7</span><span class="tname">An uploaded document has a file behind it</span><input class="chk" type="checkbox" aria-label="G12-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Upload a PDF or text file through the Library dialog. <code>GET /documents/{id}/content</code> returns <b>200</b> with the same bytes, and the object exists in MinIO under <code>&lt;tenant&gt;/documents/</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The row appears and the download 404s. That was finding 36 — the dialog posted metadata with a <code>filePath</code> invented from the file's name.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G12-8">
+      <div class="test-top"><span class="tid">G12-8</span><span class="tname">Confidential means confidential</span><input class="chk" type="checkbox" aria-label="G12-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Tick <b>confidential</b> in the upload dialog. The created document comes back with <code>isConfidential: true</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It is false. Finding 39: the endpoint hardcoded false, so every paper uploaded as confidential was registered as public.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G13 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G13</span><h2>A token the backend has stopped accepting</h2></div>
+    <p class="sec-note">Finding 40. The service token is cached for six hours, which handles a token growing <b>old</b> but not one invalidated <b>early</b> — a backend restart, a rotated secret, a disabled account. In that window every read tool fails and the assistant answers "there is a technical problem with the system", so this reads to a user as the whole product being down. Restarting the container clears it, which is exactly why the cause stayed invisible. Set up by rotating the API's <code>JWT_SECRET</code> and restarting <code>api</code> only — do not restart <code>ai-services</code>, or you destroy the condition you are testing.</p>
+
+    <article class="test" data-id="G13-1">
+      <div class="test-top"><span class="tid">G13-1</span><span class="tname">The assistant recovers from a rejected token on its own</span><input class="chk" type="checkbox" aria-label="G13-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Rotate <code>JWT_SECRET</code> in the API's environment and restart <b>api</b> alone, so the token <code>ai-services</code> is holding is now invalid. Ask <span class="ar-inline">كم عدد الاجتماعات؟</span> The assistant answers with the real count, and <code>docker compose logs ai-services</code> shows <code>Magales rejected the service token … re-authenticating</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It apologises that there is a technical problem with the system, or keeps failing until <code>ai-services</code> is restarted. That is the reported bug: <code>invalidate_token</code> existed for exactly this and was called from nowhere.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G13-2">
+      <div class="test-top"><span class="tid">G13-2</span><span class="tname">Recovery is once per call, not a login loop</span><input class="chk" type="checkbox" aria-label="G13-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Point <code>MAGALES_SERVICE_PASSWORD</code> at a wrong value and restart <b>ai-services</b>, then ask any question that reads data. It fails cleanly, and the logs show <b>one</b> re-authentication for that call — not a stream of login attempts against the API.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>/auth/login</code> is hit repeatedly. A second 401 means the credentials themselves are wrong, and retrying that turns a misconfiguration into a login flood. Restore the password afterwards.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G13-3">
+      <div class="test-top"><span class="tid">G13-3</span><span class="tname">The scheduled snapshot recovers too, not just the chat</span><input class="chk" type="checkbox" aria-label="G13-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With the token invalidated the same way as G13-1, call the insights endpoint for the tenant → <b>200</b> with real figures. The Insights page loads.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Insights 500s while the chat works. <code>compute_insights</code> runs on a schedule as well as on demand, so a stale token there fails unattended where nobody is watching for it — both call sites go through <code>request_with_auth</code> for this reason.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G14 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G14</span><h2>A recording you can lose, and a log that says so</h2></div>
+    <p class="sec-note">Findings 50–53. All but the first are about <b>evidence</b> rather than behaviour: a 12-minute recording was lost and the only trace anywhere was the user noticing it missing from the list. Read the logs with <code>docker compose -f docker-compose.dev.yml logs ai-services</code> and <code>… api</code>. G14-1 is the one that must be re-run after any change to <code>nginx.conf</code> or the UI Dockerfile.</p>
+
+    <article class="test" data-id="G14-1">
+      <div class="test-top"><span class="tid">G14-1</span><span class="tname">A long recording survives transcription</span><input class="chk" type="checkbox" aria-label="G14-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Record <b>at least 3 minutes</b> through the app on <code>:4200</code> (the nginx-served build, not <code>ng serve</code> — the bug only exists there) and stop. Transcription takes well over 60s, the notes are generated, and the app navigates to the new note.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The browser reports a failure while <code>docker compose logs ai-services</code> shows <code>POST /v1/transcribe … 200 OK</code>. That mismatch <i>is</i> finding 50: nginx cut the caller at its 60s default while the work completed. Check <code>proxy_read_timeout</code> is present in <code>location /api/</code>.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-2">
+      <div class="test-top"><span class="tid">G14-2</span><span class="tname">The audio is logged before the work starts</span><input class="chk" type="checkbox" aria-label="G14-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Every recording logs <code>received &lt;file&gt; (&lt;type&gt;) for tenant &lt;t&gt;: N KB, language=…, provider=…</code> <b>before</b> transcription runs, then <code>transcribed …: N KB audio -&gt; C chars / W words (D distinct) in Ts via &lt;engine&gt;</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Either line is missing. The browser holds the only copy of the audio until the pipeline succeeds, so the first line is the sole evidence it arrived and how much of it.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-3">
+      <div class="test-top"><span class="tid">G14-3</span><span class="tname">A repetition loop is named, not just stored</span><input class="chk" type="checkbox" aria-label="G14-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Record 3+ minutes with the microphone <b>muted</b>. The log carries <code>DEGENERATE TRANSCRIPT … N words but only D distinct</code>, naming a silent or wrong microphone as the likely cause.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A note is saved with no warning logged. Finding 52: 54,612 words from a vocabulary of five were stored and summarised like a real meeting. <b>Known gap</b> — the note is still saved; only the warning exists today.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-4">
+      <div class="test-top"><span class="tid">G14-4</span><span class="tname">Ordinary minutes are never flagged</span><input class="chk" type="checkbox" aria-label="G14-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A normal recording of real speech, in Arabic or English, logs its counts and <b>no</b> <code>DEGENERATE</code> line. <code>uv run pytest tests/test_transcript_health.py</code> passes — it covers the real lost transcript, Arabic minutes, English prose, a short repetitive answer and empty input.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A real transcript trips the warning. A guard that cries wolf on genuine minutes gets ignored, and then the real loop passes unnoticed too.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-5">
+      <div class="test-top"><span class="tid">G14-5</span><span class="tname">A failed transcription is no longer silent</span><input class="chk" type="checkbox" aria-label="G14-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Post a non-audio file to <code>/v1/transcribe</code>. Within a second the log carries <code>received &lt;file&gt; …</code> and <code>openrouter transcription failed after Xs (…); falling back to whisper</code>. <b>Abort the request there</b> — see G14-8. If you let it run to completion the final failure logs the exception with tenant, filename and size, and returns <b>502</b> <code>asr_error</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing is logged. That was the old behaviour: the browser showed "could not process the notes" and the server said nothing at all — no line for the request, the failure, or the fallback.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-6">
+      <div class="test-top"><span class="tid">G14-6</span><span class="tname">The browser says which step failed</span><input class="chk" type="checkbox" aria-label="G14-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Force a failure (stop <code>ai-services</code>, then stop a recording). The console shows <code>[meeting-recording] failed during "transcribing"</code> with the HTTP status, and a cut connection during transcription offers the paste-transcript route rather than the generic message.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing reaches the console. Finding 51: the bare <code>catch</code> is why the first lost recording left no trace a user could hand over.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-7">
+      <div class="test-top"><span class="tid">G14-7</span><span class="tname">A rejected credential does not read as boot noise</span><input class="chk" type="checkbox" aria-label="G14-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On a normal boot, ai-services logs <code>Magales not reachable yet … expected during startup</code>. Set <code>MAGALES_SERVICE_PASSWORD</code> wrong and restart: it logs <code>Magales REJECTED the service account … HTTP 401</code> at <b>ERROR</b>, saying it will not retry its way out. Restore the password afterwards.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Both cases print the same sentence. Finding 53: the insights job fires before the API is reachable on every boot, so that line is permanent noise — and a real credential failure hid inside it, which is finding 40 one layer down.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G14-8">
+      <div class="test-top"><span class="tid">G14-8</span><span class="tname">The Whisper fallback has a model to fall back to</span><input class="chk" type="checkbox" aria-label="G14-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker exec boardhub-ai-services find / -name "model.bin" 2&gt;/dev/null</code> finds a cached Whisper model, or a named volume mounts one. Every transcription failure routes to <code>transcribe_whisper</code>, so the model must already be there.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing is found — which is the state today (finding 54). The first fallback then downloads ~1.5 GB <b>inside the request</b> while the caller waits, so a transient OpenRouter error turns into a request that cannot finish before any proxy timeout. It compounds finding 50 rather than rescuing it.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══ G15 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G15</span><h2>A substitute who is really there, and an enum the database refused</h2></div>
+    <p class="sec-note">Findings 55, 58, and the readiness half of 56. The browser shipped first: <code>bfce195 feat(meetings): leadership quorum rule + substitute nomination</code> merged to <code>develop</code> calling <code>PATCH /meetings/{id}/attendees/me/delegate</code> against an endpoint nobody had built, so every check here is written <b>from the meeting screen</b> rather than from curl — the seam is the thing that was missing. Run the whole section twice, once in English and once in العربية; G15-2 is the dedicated Arabic pass but the status chip and the substitute line are localised everywhere they appear. Requires the <b>Postgres</b> stack, not H2 — G15-9 exists precisely because the H2 suite cannot see the bug. Note that <b>G12-4 is a different feature</b>: that is task delegation, this is attendance.</p>
+
+    <article class="test" data-id="G15-1">
+      <div class="test-top"><span class="tid">G15-1</span><span class="tname">A member nominates a substitute</span><input class="chk" type="checkbox" aria-label="G15-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Signed in as an invited member of a <code>SCHEDULED</code> meeting, the header carries <b>Nominate Substitute</b>. It opens a picker, search narrows it, and <b>Nominate</b> returns <b>200</b>. The member's row now reads <b>Substitute nominated</b> with <code>Substitute: &lt;name&gt;</code> beneath it. <b>Reload the page</b> — both are still there, drawn from <code>delegatedToUserId</code> / <code>delegatedToNameAr</code> / <code>delegatedToNameEn</code> on the attendee response.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The PATCH 404s. That is finding 55 as it shipped: the UI called an endpoint that did not exist, while <code>delegated_to_user_id</code> and its FK <code>fk_attendees_delegate</code> had been on the entity all along — the storage was built and never exposed. If the row renders but empties on reload, the mapper is not carrying the three fields.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-2">
+      <div class="test-top"><span class="tid">G15-2</span><span class="tname">The same nomination in Arabic</span><input class="chk" type="checkbox" aria-label="G15-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Switch to العربية and repeat G15-1. The button reads <b>ترشيح بديل</b>, the dialog <b>ترشيح بديل لحضور الاجتماع</b>, its action <b>ترشيح</b>, the resulting chip <b>رشّح بديلاً</b> and the line beneath the name <b>البديل: &lt;الاسم&gt;</b>. The substitute's <b>Arabic</b> name is shown, and the layout stays RTL with the chip on the correct side.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of it falls back to English, or the Latin name appears where the Arabic one exists. The response carries both names for exactly this reason; picking between them is the UI's job and it is the half that gets missed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-3">
+      <div class="test-top"><span class="tid">G15-3</span><span class="tname">The picker never offers someone already invited</span><input class="chk" type="checkbox" aria-label="G15-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Everyone already on the attendee list is absent from the picker. A colleague who is <b>not</b> invited to this meeting <b>is</b> offered, including one with no membership of the board at all — that is how an external advisor or a technical stand-in gets nominated.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>An existing attendee can be chosen: a seat would then be counted twice toward the quorum, once in their own right and once as somebody's proxy. If no non-member is ever offered, the picker is over-filtering and the external-advisor case is unreachable.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-4">
+      <div class="test-top"><span class="tid">G15-4</span><span class="tname">A member cannot stand in for themselves</span><input class="chk" type="checkbox" aria-label="G15-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Nominating yourself returns <b>400</b> <code>INVALID_ARGUMENT</code>, <i>"A member cannot nominate themselves as their own substitute"</i>, and the browser surfaces the server's message rather than a generic one. The picker should not offer you in the first place, since you are on the attendee list — this check is that the server does not rely on that.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It succeeds. The row would then read as both present and delegated, and the quorum count has no defensible answer.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-5">
+      <div class="test-top"><span class="tid">G15-5</span><span class="tname">A resigned director cannot be nominated</span><input class="chk" type="checkbox" aria-label="G15-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Set a board member's membership to <code>TERMINATED</code> in the database (there is still no UI for resigning — same setup as G12-2), leave them off this meeting's invite list, then nominate them. <b>403</b>, <i>"That member's membership of this board is no longer active"</i>. <code>INACTIVE</code> and <code>EXPIRED</code> behave the same way.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The nomination is accepted. Resigning is a status change with the row kept, so a director who left in March would otherwise carry a vote in April. Someone with <b>no</b> membership row must still pass — the guard is on a membership that has lapsed, not on the absence of one, which is the same distinction <code>MeetingBriefingService</code> draws for standing in findings 35 and 37.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-6">
+      <div class="test-top"><span class="tid">G15-6</span><span class="tname">A finished meeting refuses a substitute</span><input class="chk" type="checkbox" aria-label="G15-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On a <code>COMPLETED</code> or <code>CANCELLED</code> meeting the nomination returns <b>409</b> <code>ILLEGAL_STATE</code>, naming the status. <code>DRAFT</code>, <code>SCHEDULED</code>, <code>POSTPONED</code> and <code>IN_PROGRESS</code> all still accept one — a substitute arriving after the sitting has opened is the ordinary case, not an edge case.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>IN_PROGRESS</code> is refused, or a completed meeting accepts. Once minutes exist they are the record, and attendance rewritten behind them is a governance problem rather than a data one.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-7">
+      <div class="test-top"><span class="tid">G15-7</span><span class="tname">Cancelling puts the seat back to PENDING</span><input class="chk" type="checkbox" aria-label="G15-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With a substitute nominated the header offers <b>Cancel Substitute</b> (<b>إلغاء ترشيح البديل</b>). It asks for confirmation, then the row returns to <b>Pending</b>: <code>delegatedToUserId</code> is null, and <code>confirmedAt</code> is cleared too. The <b>Nominate Substitute</b> button comes back.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The status stays <code>DELEGATED</code>, or <code>confirmedAt</code> keeps its old timestamp. Cancelling is a withdrawal of the answer, not a correction to it — leaving the timestamp would show the member as having replied at a moment they have just retracted.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-8">
+      <div class="test-top"><span class="tid">G15-8</span><span class="tname">The quorum card and the brief agree</span><input class="chk" type="checkbox" aria-label="G15-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Note the meeting screen's quorum figure, nominate one substitute, and watch it rise by one. Now ask for the pre-meeting brief (G12-1) and read its readiness line: <b>the same number</b>. <code>readiness()</code> counts <code>CONFIRMED</code>, <code>DELEGATED</code>, <code>ATTENDED</code> and <code>ATTENDED_REMOTE</code>, which is the set the quorum card counts.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The two differ by the number of delegated seats. The chair reads whichever they happen to open and decides whether the sitting goes ahead on it. <b>Known gap</b> — this closes only the readiness half of finding 56; the quorum <i>rule</i> itself, including "chairman and vice-chairman must be present", still lives in <code>meeting-detail.component.ts</code> and no server-side caller enforces it.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G15-9">
+      <div class="test-top"><span class="tid">G15-9</span><span class="tname">DELEGATED survives Postgres, not just H2</span><input class="chk" type="checkbox" aria-label="G15-9 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Against a database that <b>already existed</b> before <code>DELEGATED</code> was added — not a freshly created one — G15-1 succeeds. Confirm the constraint was widened: <code>docker compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boardhub -c "\d+ meeting_attendees"</code> shows <code>meeting_attendees_attendance_status_check</code> listing <code>DELEGATED</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The PATCH returns <b>500</b> with SQLSTATE <code>23514</code>. That is finding 58, and it is why this check is worth more than it looks: Hibernate writes a CHECK constraint per <code>@Enumerated(STRING)</code> column at table creation and <code>ddl-auto: update</code> never revises it, so a new enum value compiles, passes the H2 suite — <code>create-drop</code> regenerates the constraint from the current enum every run — and fails only against a real database. <b>77 such constraints exist.</b> The repair lives in <code>data-postgres.sql</code> rather than a migration because Flyway has never run in this profile (finding 48), so <b>every future enum value needs the same block</b> until that is fixed.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b>, <b>G9</b> and <b>G10</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>

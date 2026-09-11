@@ -21,7 +21,12 @@ charts/*.tgz
 *.swp
 
 # Claude Code
-.claude/
+.claude/*
+# Share the project's workflows and slash commands; keep personal settings out.
+# A negation cannot re-include a path under an excluded DIRECTORY, so the rule above
+# has to be `.claude/*` rather than `.claude/`.
+!.claude/workflows/
+!.claude/commands/
 
 # Logs
 *.log
