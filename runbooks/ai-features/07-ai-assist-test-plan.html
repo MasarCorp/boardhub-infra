@@ -2581,8 +2581,78 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G16 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G16</span><h2>Migrations that had never run, and a seed that knew about one tenant</h2></div>
+    <p class="sec-note">Findings 48, 49, 59, 60, 61. Every check here needs the <b>Postgres</b> stack — <code>docker compose -f docker-compose.dev.yml</code> — and a database that <b>already has data</b>. A freshly wiped one cannot fail most of these, which is the whole reason the defects survived this long. Connect with <code>psql -U magales -d magales</code>; the credentials are <code>magales</code>/<code>magales-dev</code>, not <code>postgres</code>. G16-1 is the one to re-run after any change under <code>db/migration</code>.</p>
+
+    <article class="test" data-id="G16-1">
+      <div class="test-top"><span class="tid">G16-1</span><span class="tname">The migration history exists at all</span><input class="chk" type="checkbox" aria-label="G16-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>select version, description, success from flyway_schema_history order by installed_rank</code> returns the baseline at <b>15</b> and <b>16</b> with <code>success = t</code>. The API log carries <code>Schema migrations: applied 1 — [V16] — schema now at 16</code> on the boot that first applied it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The table does not exist. That was the state until 2026-09-12 and it is finding 48 exactly: Flyway was enabled only in the SQL Server profile, which had no driver in <code>pom.xml</code> and could not boot. Fifteen migrations sat in the repo looking applied. <b>An empty result is not a pass</b> — it is the bug.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G16-2">
+      <div class="test-top"><span class="tid">G16-2</span><span class="tname">A restart applies nothing</span><input class="chk" type="checkbox" aria-label="G16-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker compose -f docker-compose.dev.yml restart api</code>, then read the log: <code>Schema migrations: up to date at 16, nothing to apply</code>. <code>select count(*) from flyway_schema_history</code> is unchanged.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Anything re-applies, or the count grows. The migrations run on every boot by design, so a second run doing work means the history table is not being honoured.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G16-3">
+      <div class="test-top"><span class="tid">G16-3</span><span class="tname">V1–V15 are baselined, not replayed</span><input class="chk" type="checkbox" aria-label="G16-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The history holds <b>one</b> row for versions 1–15 — <code>&lt;&lt; Flyway Baseline &gt;&gt;</code> at 15 — not fifteen rows. On a database with no history at all the first boot logs <code>baselined at 15 … Flyway now owns V16 onward</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>V1–V15 execute. Every table they create already exists (Hibernate <code>ddl-auto: update</code>) and their data is already seeded, so replaying them is risk without gain. Note this applies to a brand-new database too: Hibernate builds the schema during context refresh, before the migration runner executes, so the schema is never empty when Flyway looks at it.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G16-4">
+      <div class="test-top"><span class="tid">G16-4</span><span class="tname">Every tenant has its own roles</span><input class="chk" type="checkbox" aria-label="G16-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>select tenant_id, count(*) from roles group by tenant_id</code> returns a row per tenant, each with the <b>same</b> count — 8 on the seeded stack. Delete one tenant's roles and its <code>role_permissions</code>, restart the API, and they come back.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Only one tenant has any. Finding 61: both seed files hardcoded <code>tenant_id</code> to the demo tenant and guarded on <code>code</code> alone, so the second seeded tenant had <b>zero</b> roles. In a multi-tenant SaaS that is not a seeding detail — it is the shape of the product being wrong in the fixture everyone develops against.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G16-5">
+      <div class="test-top"><span class="tid">G16-5</span><span class="tname">A role code is unique per tenant, not globally</span><input class="chk" type="checkbox" aria-label="G16-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>select conname from pg_constraint where conrelid='roles'::regclass and contype='u'</code> returns <code>uk_roles_code_tenant</code> and <b>not</b> <code>uk_roles_code</code>. Two tenants can both hold <code>SUPER_ADMIN</code>; inserting a second <code>SUPER_ADMIN</code> into the <i>same</i> tenant still fails.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>uk_roles_code</code> is still there. Finding 49, and it is what blocked finding 48 — V1 seeds roles for every tenant, so it could never complete, and V1 being first meant nothing in <code>db/migration</code> ran at all. One constraint held back the entire migration history.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G16-6">
+      <div class="test-top"><span class="tid">G16-6</span><span class="tname">Raw SQL can insert a valid row</span><input class="chk" type="checkbox" aria-label="G16-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>insert into system_settings (tenant_id, category, setting_key, setting_value, created_by) values ('00000001-0000-0000-0000-000000000001','POLICIES','g16Probe','1','TEST')</code> succeeds without naming <code>id</code>, <code>created_at</code> or <code>is_deleted</code>. Delete the probe row afterwards.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>23502</code>. Finding 60: Hibernate creates those three NOT NULL with no default because the app always supplies them, which holds until something writes SQL directly — and the seeds and all sixteen migrations do exactly that.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G16-7">
+      <div class="test-top"><span class="tid">G16-7</span><span class="tname">The SQL Server profile cannot be booted by accident</span><input class="chk" type="checkbox" aria-label="G16-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>No <code>application-prod.yml</code> under <code>src/main/resources</code>. The configuration survives as <code>config-samples/application-sqlserver.yml.sample</code>, outside the classpath, with a header saying why it never worked.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It is still a loadable profile. It targets SQL Server with no driver in <code>pom.xml</code>, so <code>SPRING_PROFILES_ACTIVE=prod</code> buys a confusing startup failure — and while it existed it was read as the deployment target, which is how the mobile design handoff came to specify SQL Server for a product that runs Postgres.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G16-8">
+      <div class="test-top"><span class="tid">G16-8</span><span class="tname">The H2 profile is untouched by any of this</span><input class="chk" type="checkbox" aria-label="G16-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>mvn -o test</code> runs with no migration activity in its output. <code>SchemaMigrationRunner</code> is <code>@Profile("postgres")</code>, and the H2 profile rebuilds from the entities with <code>create-drop</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A test context tries to migrate. Every file in <code>db/migration</code> is Postgres dialect — <code>DO $$</code>, <code>gen_random_uuid()</code> — and H2 cannot execute V16 at all. <b>Known</b>: <code>DecisionEscalationServiceTest</code> fails with two Mockito errors on <code>develop</code> independently of this work; compare against that baseline rather than expecting green.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G16</b> on 12 September for fifteen migrations that had never once executed, the constraint that was holding them back, and a seed that only knew about one tenant; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
