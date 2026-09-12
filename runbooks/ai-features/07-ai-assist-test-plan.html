@@ -2691,7 +2691,7 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     <article class="test" data-id="G17-5">
       <div class="test-top"><span class="tid">G17-5</span><span class="tname">Usage reports what the plan allows</span><input class="chk" type="checkbox" aria-label="G17-5 passed"></div>
       <div class="meta">
-        <div><p class="lbl pass">Expect</p><p><code>GET /tenant/usage</code> returns <code>seatsInUse</code>, <code>seatLimit</code>, <code>seatsRemaining</code>, <code>plan</code>, <code>status</code> and <code>enforced</code>. It takes <b>no tenant id</b> — the answer comes from the resolved tenant, so there is no id for a caller to tamper with and no way to read another tenant's usage through it.</p></div>
+        <div><p class="lbl pass">Expect</p><p><code>GET /tenant/usage</code> returns <code>seatsInUse</code>, <code>seatLimit</code>, <code>seatsRemaining</code>, <code>plan</code>, <code>status</code> and <code>enforced</code> — which reads <code>false</code> on a default deployment, because seats are reported before they are refused. It takes <b>no tenant id</b> — the answer comes from the resolved tenant, so there is no id for a caller to tamper with and no way to read another tenant's usage through it.</p></div>
         <div><p class="lbl fail">Fails if</p><p>It accepts a tenant id, or returns another tenant's figures. The operator equivalent is <code>GET /admin/tenants/{id}/usage</code> and it is SUPER_ADMIN-only.</p></div>
       </div>
     </article>
@@ -2699,7 +2699,7 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     <article class="test" data-id="G17-6">
       <div class="test-top"><span class="tid">G17-6</span><span class="tname">The seat limit refuses the next user</span><input class="chk" type="checkbox" aria-label="G17-6 passed"></div>
       <div class="meta">
-        <div><p class="lbl pass">Expect</p><p>Set the tenant's <code>seat_limit</code> to its current seat count, then <code>POST /users</code> → <b>400</b> <code>SEAT_LIMIT_REACHED</code>, naming the number and the plan. Reset <code>seat_limit</code> to null afterwards and the same call succeeds.</p></div>
+        <div><p class="lbl pass">Expect</p><p><b>Seat enforcement ships off</b> — set <code>APP_TENANCY_SEATS_ENFORCE=true</code> and restart first, or this check passes for the wrong reason. Then set the tenant's <code>seat_limit</code> to its current seat count and <code>POST /users</code> → <b>400</b> <code>SEAT_LIMIT_REACHED</code>, naming the number and the plan. Reset <code>seat_limit</code> to null afterwards and the same call succeeds.</p></div>
         <div><p class="lbl fail">Fails if</p><p>The user is created. Finding 64: the column existed and nothing read it. Note the check lives in <code>UserService.create</code> rather than a controller — every path that creates a user goes through it, and a limit enforced at one entry point is not a limit.</p></div>
       </div>
     </article>
