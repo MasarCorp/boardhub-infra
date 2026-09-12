@@ -2651,8 +2651,78 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G17 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G17</span><h2>Suspension that suspends, and seats that are actually a limit</h2></div>
+    <p class="sec-note">Findings 63 and 64. Both were <b>stored and never read</b>: <code>SUSPENDED</code> stopped a tenant's background jobs while its users carried on working, and <code>seatLimit</code>/<code>plan</code> existed in the entity while every plan was unlimited. Log in as <code>admin</code> against <code>X-Tenant-Slug: acme</code> — the login field is <code>identifier</code>, not <code>username</code>. <b>Run G17-3 before G17-4</b>: if the exempt paths are broken you cannot un-suspend and the stack needs a database edit to recover. Everything here is configurable under <code>app.tenancy</code>; the defaults are what these checks assume.</p>
+
+    <article class="test" data-id="G17-1">
+      <div class="test-top"><span class="tid">G17-1</span><span class="tname">The gate says what it is doing at startup</span><input class="chk" type="checkbox" aria-label="G17-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The API logs <code>Tenant status gate active: allowing [ACTIVE], exempt prefixes […]</code> on boot. Set <code>APP_TENANCY_STATUS_GATE_ALLOWED</code> to a value that is not a <code>TenantStatus</code> and the application <b>refuses to start</b>, naming the bad value and the valid ones.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A typo is accepted. A misspelled status in a Helm values file would narrow the allow-list to nothing and 423 every tenant in production with no explanation. Failing to start is the kinder failure, and it is the one a pipeline catches.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G17-2">
+      <div class="test-top"><span class="tid">G17-2</span><span class="tname">A suspended tenant is refused</span><input class="chk" type="checkbox" aria-label="G17-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>POST /admin/tenants/{id}/suspend?reason=…</code> returns 200. Any tenant-scoped call — <code>GET /tenant/usage</code> will do — then returns <b>423</b> with <code>errorCode: TENANT_NOT_ACTIVE</code> and a message naming the status. The API logs <code>Refused request for tenant … status is SUSPENDED</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The call succeeds. That was the behaviour before finding 63: suspension stopped reminders and decision escalation and nothing else, so a non-paying tenant kept full use of the product.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G17-3">
+      <div class="test-top"><span class="tid">G17-3</span><span class="tname">Exempt paths survive suspension</span><input class="chk" type="checkbox" aria-label="G17-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>While suspended: <code>POST /auth/login</code> still returns 200, and <code>GET /admin/tenants</code> still returns 200.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Either is refused, and this is the check that matters most. Without <code>/auth</code> a suspended tenant's users cannot sign in to be told why, and the UI cannot tell "suspended" from "server down". Without <code>/admin/tenants</code> <b>suspension is irreversible through the API</b> — the only way back would be editing the database.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G17-4">
+      <div class="test-top"><span class="tid">G17-4</span><span class="tname">Restore returns the tenant to service</span><input class="chk" type="checkbox" aria-label="G17-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>POST /admin/tenants/{id}/restore</code> → 200, the same tenant-scoped call → 200, and <code>suspended_at</code> is back to null. Suspending twice in a row also returns 200 — it is idempotent, because a retried billing webhook must not become an error.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The second suspend 4xxs, or <code>suspended_at</code> keeps a stale timestamp after restore. Suspension is reversible by design: the commonest reason for it is a billing problem that gets resolved.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G17-5">
+      <div class="test-top"><span class="tid">G17-5</span><span class="tname">Usage reports what the plan allows</span><input class="chk" type="checkbox" aria-label="G17-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>GET /tenant/usage</code> returns <code>seatsInUse</code>, <code>seatLimit</code>, <code>seatsRemaining</code>, <code>plan</code>, <code>status</code> and <code>enforced</code>. It takes <b>no tenant id</b> — the answer comes from the resolved tenant, so there is no id for a caller to tamper with and no way to read another tenant's usage through it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It accepts a tenant id, or returns another tenant's figures. The operator equivalent is <code>GET /admin/tenants/{id}/usage</code> and it is SUPER_ADMIN-only.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G17-6">
+      <div class="test-top"><span class="tid">G17-6</span><span class="tname">The seat limit refuses the next user</span><input class="chk" type="checkbox" aria-label="G17-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Set the tenant's <code>seat_limit</code> to its current seat count, then <code>POST /users</code> → <b>400</b> <code>SEAT_LIMIT_REACHED</code>, naming the number and the plan. Reset <code>seat_limit</code> to null afterwards and the same call succeeds.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The user is created. Finding 64: the column existed and nothing read it. Note the check lives in <code>UserService.create</code> rather than a controller — every path that creates a user goes through it, and a limit enforced at one entry point is not a limit.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G17-7">
+      <div class="test-top"><span class="tid">G17-7</span><span class="tname">A tenant's own limit beats its plan</span><input class="chk" type="checkbox" aria-label="G17-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With <code>seat_limit</code> set, <code>/tenant/usage</code> reports that number even when the plan's configured default is larger — a BUSINESS tenant pinned to 13 reports 13, not 100. With <code>seat_limit</code> null it reports the plan default from <code>app.tenancy.seats.plan-limits</code>. A limit of <code>0</code> means <b>unlimited</b>, and the response then carries <code>null</code> rather than a number.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The plan default wins over an explicit limit. That column is what an operator or a marketplace entitlement writes for a negotiated contract; a plan default overriding it would silently rewrite the deal.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G17-8">
+      <div class="test-top"><span class="tid">G17-8</span><span class="tname">Nothing here breaks the integrations</span><input class="chk" type="checkbox" aria-label="G17-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With a tenant suspended, <code>/internal/ai/**</code> and <code>/webhooks/saynee/**</code> still answer — both authenticate by HMAC and belong to the platform rather than the tenant. ai-services continues to serve the assistant for <b>other</b> tenants.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A webhook starts 423ing, which would lose inbound signature callbacks for a tenant that is merely behind on payment. <b>Known and unrelated</b>: ai-services logs <code>service login failed for tenant globex: HTTP 400</code> on every boot because <code>globex</code> has no users at all, so <code>MAGALES_SERVICE_USERNAME</code> does not exist there. That is finding 62 and it predates this work — confirm it is unchanged rather than expecting it to be absent.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G16</b> on 12 September for fifteen migrations that had never once executed, the constraint that was holding them back, and a seed that only knew about one tenant; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G16</b> on 12 September for fifteen migrations that had never once executed, the constraint that was holding them back, and a seed that only knew about one tenant; <b>G17</b> on 13 September for suspension that finally suspends and seats that are finally a limit; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>
