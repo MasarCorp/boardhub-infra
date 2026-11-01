@@ -2721,6 +2721,60 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G18 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G18</span><h2>Five holes closed: Nafath, signatures, audit log, tenant by id, ai-services</h2></div>
+    <p class="sec-note">Findings F65, F47, F66, F67 and F68. <code>globex</code> has no users (F62), so G18-4 needs a second tenant created through signup first. <code>ai-services</code> now refuses unsigned requests: <b>earlier sections that curl port 8081 directly must use <code>scripts/ai-curl.sh</code></b>.</p>
+
+    <article class="test" data-id="G18-1">
+      <div class="test-top"><span class="tid">G18-1</span><span class="tname">Simulated Nafath is off</span><input class="chk" type="checkbox" aria-label="G18-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>POST /auth/nafath/request</code> with a seeded national ID returns 400 <code>NAFATH_NOT_AVAILABLE</code>, and <code>GET /auth/nafath/status?transId=x</code> returns the same.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Either call returns a transaction or a token. Anyone holding a national ID could sign in as that person.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G18-2">
+      <div class="test-top"><span class="tid">G18-2</span><span class="tname">Another user's signatures are refused</span><input class="chk" type="checkbox" aria-label="G18-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>As a non-admin, <code>GET /users/{otherId}/signatures</code> returns 403 and <code>/users/{ownId}/signatures</code> returns 200. As <code>admin</code>, both return 200.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The non-admin call returns 200, because the response carries the signature image.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G18-3">
+      <div class="test-top"><span class="tid">G18-3</span><span class="tname">The audit log is for admins, one tenant at a time</span><input class="chk" type="checkbox" aria-label="G18-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>A non-admin gets 403 on <code>GET /audit-logs</code>. An admin of <code>acme</code> changes a user and sees that entry; an admin of a second tenant does not.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A non-admin gets 200, or either tenant sees the other's entries.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G18-4">
+      <div class="test-top"><span class="tid">G18-4</span><span class="tname">Another tenant's record is not found by id</span><input class="chk" type="checkbox" aria-label="G18-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Upload a document as the second tenant. Logged in as <code>acme</code>, <code>GET /documents/{id}/content</code> with that id returns 404, and the owner still gets the file.</p></div>
+        <div><p class="lbl fail">Fails if</p><p><code>acme</code> receives the file.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G18-5">
+      <div class="test-top"><span class="tid">G18-5</span><span class="tname">ai-services refuses anything unsigned</span><input class="chk" type="checkbox" aria-label="G18-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>curl -i -X POST localhost:8081/v1/rag/reindex</code> returns 401 and the index is untouched. <code>curl localhost:8081/v1/health</code> returns 200. <code>scripts/ai-curl.sh GET /v1/health/providers</code> returns 200.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The reindex runs, or the signed call is refused.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G18-6">
+      <div class="test-top"><span class="tid">G18-6</span><span class="tname">The assistant still works through the API</span><input class="chk" type="checkbox" aria-label="G18-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Sign in through the UI, ask the assistant a question and get a streamed answer; transcribe a short recording on the meeting notes page; run the AI provider test connection in settings.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of them returns 401 or 502, which means a call to ai-services is not being signed.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
     <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G16</b> on 12 September for fifteen migrations that had never once executed, the constraint that was holding them back, and a seed that only knew about one tenant; <b>G17</b> on 13 September for suspension that finally suspends and seats that are finally a limit; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>

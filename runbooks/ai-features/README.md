@@ -12,7 +12,7 @@ Local URLs:
 | Service | URL |
 | --- | --- |
 | Backend API | http://localhost:8080/api |
-| ai-services | http://localhost:8081 |
+| ai-services | http://localhost:8081 — refuses unsigned requests; use `scripts/ai-curl.sh METHOD /v1/path [curl args]` in place of the `curl` commands in these guides |
 | MinIO console | http://localhost:9001 (magales / magales-dev-secret) |
 | OpenSearch | http://localhost:9200 |
 | UI | http://localhost:4200 |
