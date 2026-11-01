@@ -121,9 +121,11 @@ services:
       SAYNEE_WEBHOOK_SECRET: "${SAYNEE_WEBHOOK_SECRET:-}"
       # ── ai-services integration (ADR-0004/0005) ──
       # Backend proxies the provider test-connection to ai-services, and shares this
-      # HMAC secret to authenticate /api/internal/ai/** calls. Blank in dev skips HMAC.
+      # Shared with ai-services, which refuses unsigned requests. Dev value only.
       AI_SERVICES_BASE_URL: "http://ai-services:8081"
-      AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
+      AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-dev-ai-hmac-secret-change-me-32-chars-min}"
+      # Simulated Nafath issues real tokens from a national ID alone (F65). Local testing only.
+      NAFATH_SIMULATION_ENABLED: "${NAFATH_SIMULATION_ENABLED:-false}"
       # ── Mail (MailHog in dev) ──
       MAIL_HOST: mailhog
       MAIL_PORT: "1025"
@@ -188,7 +190,7 @@ services:
       MAGALES_SERVICE_USERNAME: "${MAGALES_SERVICE_USERNAME:-}"
       MAGALES_SERVICE_PASSWORD: "${MAGALES_SERVICE_PASSWORD:-}"
       # Must match the api service's AI_SERVICE_HMAC_SECRET (ADR-0004).
-      AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-}"
+      AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-dev-ai-hmac-secret-change-me-32-chars-min}"
       DEFAULT_PROVIDER: "openrouter"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -219,7 +221,7 @@ services:
       # Cache for the local embedding + Whisper models so they aren't re-downloaded per run.
       - aimodelcache:/models
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     restart: unless-stopped
 
   ui:
