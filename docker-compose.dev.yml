@@ -205,7 +205,7 @@ services:
       # Speech-to-text engine: "openrouter" (audio-input LLM, best Arabic; uses OPENROUTER_API_KEY)
       # or "whisper" (local faster-whisper, on-device). The UI can also override per recording.
       TRANSCRIBE_PROVIDER: "${TRANSCRIBE_PROVIDER:-openrouter}"
-      TRANSCRIBE_OPENROUTER_MODEL: "${TRANSCRIBE_OPENROUTER_MODEL:-google/gemini-2.5-flash}"
+      TRANSCRIBE_OPENROUTER_MODEL: "${TRANSCRIBE_OPENROUTER_MODEL:-elevenlabs/scribe-v2}"
       # Whisper ASR (local backend / fallback); model cached in the volume below.
       # Arabic accuracy is poor on "small"; "medium" is the CPU sweet spot. For the best
       # local Arabic transcription set WHISPER_MODEL=large-v3 (heavier download + slower on CPU).

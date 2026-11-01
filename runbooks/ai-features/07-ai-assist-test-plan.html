@@ -2775,6 +2775,76 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G20 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G20</span><h2>Live transcript, and a transcript that says only what was said</h2></div>
+    <p class="sec-note">Item B35 and finding F91. Use a real microphone: synthetic speech never showed the invented text a real recording did. G20 follows G18; G19 is reserved for live voice (B31), which is parked.</p>
+
+    <article class="test" data-id="G20-1">
+      <div class="test-top"><span class="tid">G20-1</span><span class="tname">Words appear while you speak</span><input class="chk" type="checkbox" aria-label="G20-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On Meeting Notes, start a microphone recording and speak Arabic and English. Text appears in the card within about 5 to 15 seconds, in spoken order, on every page you navigate to.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Nothing appears until you stop, or the card disappears when you change page.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G20-2">
+      <div class="test-top"><span class="tid">G20-2</span><span class="tname">It writes only what was said</span><input class="chk" type="checkbox" aria-label="G20-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Record with long silent pauses, 3 minutes in all. Read the saved transcript against what you said.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any sentence appears that nobody said, particularly a religious or stock phrase in a pause.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G20-3">
+      <div class="test-top"><span class="tid">G20-3</span><span class="tname">Pause captures nothing</span><input class="chk" type="checkbox" aria-label="G20-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Pause, say a distinctive word, resume, stop. The timer does not count the pause, and the word is in neither the live text nor the saved transcript.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The word appears, or the timer keeps counting.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G20-4">
+      <div class="test-top"><span class="tid">G20-4</span><span class="tname">Notes tab reaches the saved note</span><input class="chk" type="checkbox" aria-label="G20-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Type on the Notes tab while recording. The saved transcript ends with them under "Notes typed during the meeting:".</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The typed notes are missing or mixed into what was said.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G20-5">
+      <div class="test-top"><span class="tid">G20-5</span><span class="tname">A failed transcription saves nothing by itself</span><input class="chk" type="checkbox" aria-label="G20-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Stop <code>ai-services</code> before pressing stop. The card shows Retry, Save from live text and Discard, and no note is saved. Start it again and Retry: a normal note is saved.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A note appears on its own, the audio is lost, or the meeting is auto-ended.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G20-6">
+      <div class="test-top"><span class="tid">G20-6</span><span class="tname">Saving from live text is labelled</span><input class="chk" type="checkbox" aria-label="G20-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Repeat G20-5 with Save from live text. The title and the transcript both say partial, and a linked meeting is not ended.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The note looks like a complete transcript.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G20-7">
+      <div class="test-top"><span class="tid">G20-7</span><span class="tname">Signing out ends it</span><input class="chk" type="checkbox" aria-label="G20-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Sign out while recording: a warning appears, and after accepting, the browser microphone indicator goes off and no further transcribe calls appear in the Network tab.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The microphone stays on, or calls continue.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G20-8">
+      <div class="test-top"><span class="tid">G20-8</span><span class="tname">Dark, Arabic, and a narrow window</span><input class="chk" type="checkbox" aria-label="G20-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>The card is readable in dark theme and in Arabic. At 400 px wide while recording, the notifications and sign-out controls are still on screen.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Text overlaps, or a control is off-screen.</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
     <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G16</b> on 12 September for fifteen migrations that had never once executed, the constraint that was holding them back, and a seed that only knew about one tenant; <b>G17</b> on 13 September for suspension that finally suspends and seats that are finally a limit; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>

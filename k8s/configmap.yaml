@@ -43,7 +43,7 @@ data:
   # Point this at an in-cluster Ollama Service if/when you deploy one.
   OLLAMA_BASE_URL: "http://host.docker.internal:11434"
   TRANSCRIBE_PROVIDER: "openrouter"
-  TRANSCRIBE_OPENROUTER_MODEL: "google/gemini-2.5-flash"
+  TRANSCRIBE_OPENROUTER_MODEL: "elevenlabs/scribe-v2"
   WHISPER_MODEL: "medium"
   HF_HOME: "/models/hf"
   INSIGHTS_TENANTS_CSV: "acme,globex"
