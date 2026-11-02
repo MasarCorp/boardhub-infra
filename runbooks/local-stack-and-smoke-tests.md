@@ -14,8 +14,13 @@ From this repo:
 
 ```bash
 cd ~/Documents/masarcorprepos/magales-infra
+cp .env.example .env                    # once; then set JWT_SECRET in it:
+openssl rand -base64 48                 # paste the output as JWT_SECRET=
 docker compose -f docker-compose.dev.yml up -d --build
 ```
+
+`JWT_SECRET` has no default. Without it every compose command stops with
+`set JWT_SECRET in .env`. Changing it signs out everyone who is logged in.
 
 First boot takes ~3-4 minutes (Maven dependency download + Angular
 build). Subsequent boots are seconds.
@@ -35,11 +40,15 @@ docker compose -f docker-compose.dev.yml ps
 
 ## 2. URLs reference
 
+Every published port binds to `127.0.0.1`. The stack is reachable from this
+machine only, not from a phone or another machine on your network. To share
+it, put a named tunnel in front of port 4200.
+
 | Surface | URL | What it is |
 |---|---|---|
 | **Web UI** | <http://localhost:4200> | Angular app (defaults to `acme` tenant) |
 | **API** | <http://localhost:8080/api> | Spring Boot backend |
-| **Swagger / OpenAPI** | <http://localhost:8080/api/swagger-ui.html> | API reference + try-it |
+| **Swagger / OpenAPI** | <http://localhost:8080/api/swagger-ui.html> | API reference + try-it. On because compose sets `APP_API_DOCS_ENABLED=true`; off by default |
 | **Actuator health** | <http://localhost:8080/api/actuator/health> | `{"status":"UP"}` |
 | **MinIO console** | <http://localhost:9001> | S3 mock (login `magales` / `magales-dev-secret`) — not wired yet |
 
@@ -53,7 +62,12 @@ Internal-only ports (no need to open):
 
 ## 3. Default credentials
 
-Seeded by `Magales/src/main/resources/data-postgres.sql`.
+Seeded by `Magales/src/main/resources/data-postgres.sql`. The seed runs because
+compose lists it in `APP_SQL_INIT_LOCATIONS`. The API's default runs only
+`schema-repairs-postgres.sql`, so these accounts do not exist in k8s. Compose
+also sets `APP_SECURITY_ALLOW_DEV_CONFIG=true`. Without it the API refuses to
+boot on these values, including any ACTIVE user who still holds a seeded
+password.
 
 | Tenant | Slug | Login | Password | Notes |
 |---|---|---|---|---|
@@ -99,6 +113,10 @@ All other seed users (acme: `f.otaibi`, `m.otaibi`, `s.qahtani`,
    "Globex Industries". Revert when done.
 
 ### 4.3 Self-service signup (the Day-2 UI page)
+
+Signup is off by default. It works here because compose sets
+`APP_TENANCY_SIGNUP_ENABLED=true`. With it off, `POST /signup` and the signup
+verify-email step refuse with a clear business error.
 
 1. From login screen click **"Create a workspace"**, or open
    <http://localhost:4200/signup> directly.
@@ -179,18 +197,28 @@ in as acme you will never see globex rows.
 
 ### 4.8 Saynee webhook routing (curl only — no UI)
 
+The webhook no longer skips the signature check when the secret is blank.
+Compose leaves `SAYNEE_WEBHOOK_SECRET` blank, so every call returns 401 until
+you set it in `.env` and restart `api`.
+
 ```bash
-# Valid path, valid tenant — expect 200
+secret='<value of SAYNEE_WEBHOOK_SECRET>'
+body='{"event":"signature.completed","request_id":"ext-fake-123"}'
+sig="$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$secret" -r | cut -d' ' -f1)"
+
+# Signed, valid tenant — expect 200
 curl -i -X POST http://localhost:8080/api/webhooks/saynee/acme \
-  -H 'Content-Type: application/json' \
-  -d '{"event":"signature.completed","request_id":"ext-fake-123"}'
+  -H 'Content-Type: application/json' -H "X-Saynee-Signature: $sig" -d "$body"
 
-# Unknown tenant — expect 401
+# Unsigned, valid tenant — expect 401
+curl -i -X POST http://localhost:8080/api/webhooks/saynee/acme \
+  -H 'Content-Type: application/json' -d "$body"
+
+# Unsigned, unknown tenant — expect 401 with the same body, so a slug cannot be probed
 curl -i -X POST http://localhost:8080/api/webhooks/saynee/nope \
-  -H 'Content-Type: application/json' \
-  -d '{"event":"signature.completed","request_id":"x"}'
+  -H 'Content-Type: application/json' -d "$body"
 
-# Suspended / DELETING tenant would also return 401 (no slug-existence leak)
+# Suspended / DELETING tenant would also return 401
 ```
 
 ### 4.9 Tenant-context endpoint
@@ -231,6 +259,12 @@ docker compose -f docker-compose.dev.yml down -v
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| `docker compose` stops with `set JWT_SECRET in .env` | `.env` has no `JWT_SECRET` | Add one from `openssl rand -base64 48` |
+| `api` exits at boot naming a secret, the dev hint or the demo seed | Startup guard, with `APP_SECURITY_ALLOW_DEV_CONFIG` not `true` | Expected outside compose. Set real secrets, or set the flag for a local run only |
+| Login returns 429 | nginx rate limit on `/api/auth/login`, `/api/auth/refresh` and `/api/signup` | Wait a moment and retry |
+| Login refused as locked after 5 wrong passwords | Account lock, 15 minutes | Wait it out. A correct login after that resets the count. A lock an admin set has no expiry and stays until an admin clears it |
+| `/api/internal/...` returns 404 on port 4200 | nginx blocks it on purpose | ai-services calls `api:8080` directly and signs each request |
+| AI tools come back empty for a new tenant | That tenant has no user named `MAGALES_SERVICE_USERNAME` | Known and accepted for now (F46, F62) |
 | `POST /signup` returns 500 with `Connection refused` | DB not ready | Wait ~10 s after `up` and retry; check `docker compose ps` |
 | UI shows "Magales" instead of "Acme Corporation" | `tenant-context` call failed at boot | Open DevTools network tab; verify `/api/auth/tenant-context` returns 200 |
 | Verification email never arrives | Local dev uses `ConsoleEmailSender` | Look at API logs; the URL is logged AND echoed in the `verificationUrl` response field |

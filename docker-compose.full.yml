@@ -11,6 +11,7 @@
 #       └── docker-compose.dev.yml
 #
 # Run from inside this directory:
+#   cp .env.example .env      (once; JWT_SECRET is required, see .env.example)
 #   docker compose -f docker-compose.dev.yml up --build
 #   docker compose -f docker-compose.dev.yml down
 #
@@ -20,6 +21,9 @@
 #   - minio    (9000/9001)   S3-compatible object store (Day 5+)
 #   - api      (8080)        Spring Boot backend
 #   - ui       (4200 → 80)   Angular UI served by nginx
+#
+# Every published port binds to 127.0.0.1. A client that reaches a published port from the
+# network would look like a trusted proxy to the API and could spoof forwarded headers (F94).
 # ────────────────────────────────────────────────────────────
 
 name: boardhub
@@ -33,7 +37,7 @@ services:
       POSTGRES_USER: magales
       POSTGRES_PASSWORD: magales-dev
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -47,7 +51,7 @@ services:
     image: redis:7-alpine
     container_name: boardhub-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -63,8 +67,8 @@ services:
       MINIO_ROOT_USER: magales
       MINIO_ROOT_PASSWORD: magales-dev-secret
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # web console
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9001:9001"   # web console
     volumes:
       - miniodata:/data
     healthcheck:
@@ -91,7 +95,7 @@ services:
       DB_NAME: magales
       DB_USER: magales
       DB_PASSWORD: magales-dev
-      JWT_SECRET: dev-jwt-secret-change-me-32-chars-or-more-please-rotate
+      JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in .env, see .env.example}"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       S3_ENDPOINT: http://minio:9000
@@ -100,6 +104,15 @@ services:
       S3_BUCKET: magales-docs
       # Dev: no SMTP server runs locally, so don't gate health on the mail indicator.
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      # ── Local stack only (F71, F89) ──
+      # k8s sets none of these and gets the API's safe defaults. The first one lets the API boot
+      # with the dev values in this file; with it off, the startup guard refuses them.
+      APP_SECURITY_ALLOW_DEV_CONFIG: "true"
+      # Schema repairs always run. The demo seed (tenants, users, known passwords) runs only here.
+      APP_SQL_INIT_LOCATIONS: "classpath:schema-repairs-postgres.sql,classpath:data-postgres.sql"
+      APP_API_DOCS_ENABLED: "true"
+      APP_TENANCY_SIGNUP_ENABLED: "true"
+      APP_AI_ALLOW_TENANT_ENDPOINTS: "true"
       # ── Tenancy (Day 2) ──
       # In dev only, when no sub-domain matches and no X-Tenant-Slug header is sent,
       # fall back to the "acme" tenant. NEVER true in prod.
@@ -117,10 +130,10 @@ services:
       BOOTSTRAP_SUPER_ADMIN_EMAIL: "${BOOTSTRAP_SUPER_ADMIN_EMAIL:-}"
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: "${BOOTSTRAP_SUPER_ADMIN_PASSWORD:-}"
       # ── Saynee inbound webhook (Day 2 close-out) ──
-      # HMAC secret for inbound /api/webhooks/saynee/{tenantSlug}. Leave blank
-      # in dev (HMAC verification is skipped; the tenant-slug path still
-      # gates access). Set in staging/prod once the real Saynee account is
-      # provisioned.
+      # HMAC secret for inbound /api/webhooks/saynee/{tenantSlug}. Blank means
+      # every webhook call is refused with 401, so set it here before testing
+      # the webhook locally, and in staging/prod once the real Saynee account
+      # is provisioned.
       SAYNEE_WEBHOOK_SECRET: "${SAYNEE_WEBHOOK_SECRET:-}"
       # ── ai-services integration (ADR-0004/0005) ──
       # Backend proxies the provider test-connection to ai-services, and shares this
@@ -128,7 +141,7 @@ services:
       AI_SERVICES_BASE_URL: "http://ai-services:8081"
       AI_SERVICE_HMAC_SECRET: "${AI_SERVICE_HMAC_SECRET:-dev-ai-hmac-secret-change-me-32-chars-min}"
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     restart: unless-stopped
 
   opensearch:
@@ -146,7 +159,7 @@ services:
     volumes:
       - opensearchdata:/usr/share/opensearch/data
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
@@ -249,7 +262,7 @@ services:
     depends_on:
       - api
     ports:
-      - "4200:80"
+      - "127.0.0.1:4200:80"
     restart: unless-stopped
 
 volumes:

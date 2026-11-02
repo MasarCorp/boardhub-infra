@@ -2845,8 +2845,246 @@ cd /tmp &amp;&amp; REQUIRE_UI_CHECKOUT=1 python -m pytest -q &lt;path&gt;/tests/
     </article>
   </section>
 
+  <!-- ══ G21 ════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">G21</span><h2>Closing the holes before first exposure</h2></div>
+    <p class="sec-note">Findings F69, F70, F71, F89 and F94, plus Swagger and H2, the tenant LLM endpoint, role self-escalation and attachment XSS. Each check names its negative case. <b>Before starting:</b> <code>.env</code> needs <code>JWT_SECRET</code>, the new value signs everyone out, and earlier sections that post to <code>/webhooks/saynee/**</code>, G17-8 among them, must now sign the call. Published ports are <code>127.0.0.1</code> only. Still open by decision: tokens in <code>localStorage</code>, image tags, and tenants without the service user getting empty AI tools (F46, F62). Still open and tracked: a lock anyone can trigger and an access token that outlives it (F97, F98), and the rate limit trusting private ranges (F99). Key rotation is the owner's job and is not checked here.</p>
+
+    <article class="test" data-id="G21-1">
+      <div class="test-top"><span class="tid">G21-1</span><span class="tname">The AI proxy takes its tenant from the token</span><input class="chk" type="checkbox" aria-label="G21-1 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Sign in as acme. <code>POST localhost:8080/api/ai/assist/agent</code> with that token, <code>Host: acme.magales.app</code>, <code>X-Tenant-Slug: globex</code> and <code>{"query":"ping"}</code>. Then <code>docker logs --since 1m boardhub-ai-services | grep -c 'tenant globex'</code> prints 0. The assistant still answers for acme in the browser. Negative: <code>uv run pytest tests/test_inbound_auth.py -q</code> passes, including a signed request with no tenant returning 400.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any new <code>tenant globex</code> line appears, or a request with no tenant is served as <code>acme</code>. One tenant's token could read another's data through the assistant. Repeat before failing it if the 30-minute insights run landed in that minute (F62 logs the same words).</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-2">
+      <div class="test-top"><span class="tid">G21-2</span><span class="tname">Compose will not start without a signing key</span><input class="chk" type="checkbox" aria-label="G21-2 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker compose --env-file /dev/null -f docker-compose.dev.yml config --quiet</code> exits non-zero and names <code>JWT_SECRET</code>. The same command without <code>--env-file /dev/null</code> exits 0. <code>grep -n 'JWT_SECRET:' docker-compose.*.yml</code> shows only the <code>:?</code> form in both files.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Compose starts with a blank or built-in key, or a literal key is back in either file.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-3">
+      <div class="test-top"><span class="tid">G21-3</span><span class="tname">The API refuses to boot on dev config</span><input class="chk" type="checkbox" aria-label="G21-3 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker compose -f docker-compose.dev.yml run --rm --no-deps --name boardhub-api-guard -e APP_SECURITY_ALLOW_DEV_CONFIG=false api</code> exits non-zero and the log names what it refused. Compose's own stack, with the flag on, stays healthy. <code>mvn -q test -Dtest=ProductionConfigGuardTest,SeededCredentialCheckTest</code> passes: blank and short secrets fail, as does one containing <code>change-me</code>, <code>changeme</code>, <code>secret</code>, <code>placeholder</code>, <code>example</code> or <code>please</code> in any case, and a random 48-byte secret starts. An ACTIVE or timed-locked user holding a seeded hash also refuses the boot, and so does a bootstrap password equal to a seeded one. An admin-locked user does not.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The API starts with the flag off. The guard is the only thing stopping a production deploy that inherits dev values.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-4">
+      <div class="test-top"><span class="tid">G21-4</span><span class="tname">A token signed with the old published key is refused</span><input class="chk" type="checkbox" aria-label="G21-4 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Copy a real access token's header and claims, and re-sign them with HS256 using the old <code>JWT_SECRET</code> from <code>git show origin/main:docker-compose.dev.yml</code>. <code>GET /api/users</code> with it returns 401. The real token still returns 200.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The forged token returns 200. Anyone who has read this repository could then be any user in any tenant.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-5">
+      <div class="test-top"><span class="tid">G21-5</span><span class="tname">Wrong passwords really lock the account</span><input class="chk" type="checkbox" aria-label="G21-5 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Use a throwaway user, never <code>admin</code> or the service account. Five wrong logins leave <code>users.status</code> at <code>LOCKED</code>, <code>failed_login_attempts</code> at 5 and <code>locked_until</code> about 15 minutes ahead, and the right password is refused while it lasts. Negative: four wrong and one right leaves it ACTIVE with the count at 0. <code>mvn -q test -Dtest=AuthLockoutTest</code> passes.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The count stays at 0 after failures. The update used to roll back with the exception, so the lock never held.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-6">
+      <div class="test-top"><span class="tid">G21-6</span><span class="tname">Only a timed lock expires</span><input class="chk" type="checkbox" aria-label="G21-6 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On the locked user, run <code>UPDATE users SET locked_until = now() - interval '1 minute'</code> for that row only. The next login with the right password succeeds and resets the count to 0. Negative: set that user to <code>LOCKED</code> with <code>locked_until</code> null, as an admin lock is. The right password is still refused.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A timed lock never lifts, which would let anyone disable an account by guessing. Or an admin lock with no expiry opens by itself.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-7">
+      <div class="test-top"><span class="tid">G21-7</span><span class="tname">Login is rate limited at nginx</span><input class="chk" type="checkbox" aria-label="G21-7 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>for i in $(seq 1 30); do curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:4200/api/auth/login -H 'Content-Type: application/json' -d '{"identifier":"nobody","password":"x"}'; done | sort | uniq -c</code> shows 429s. Negative: after a short wait, one request returns 400.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>All 30 return 400, or a single request returns 429. Also fails if a second client behind the same tunnel is limited by the first client's traffic.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-8">
+      <div class="test-top"><span class="tid">G21-8</span><span class="tname">The page carries a CSP and nothing breaks under it</span><input class="chk" type="checkbox" aria-label="G21-8 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>curl -sI localhost:4200/ | grep -ci content-security-policy</code> prints 1 and <code>curl -s localhost:4200/ | grep -c 'onload='</code> prints 0. Listen for <code>securitypolicyviolation</code> in Chrome while using login, the dashboard, the editor, a recording and a PDF preview: none fires. Negative: an inline <code>&lt;script&gt;</code> added in DevTools does not run. Tokens stay in <code>localStorage</code> for now, so that part of F71 stays open.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The header is missing, the stylesheet stays on <code>media=print</code>, or a screen breaks with a violation in the console.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-9">
+      <div class="test-top"><span class="tid">G21-9</span><span class="tname">provider-config refuses anything not freshly signed</span><input class="chk" type="checkbox" aria-label="G21-9 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>POST localhost:4200/api/internal/ai/provider-config</code> returns 404. On <code>localhost:8080</code>: unsigned returns 401, a wrong signature returns 401, a timestamp over 300 seconds off returns 401, and a good <code>X-AI-Timestamp</code> with <code>X-AI-Signature</code> over <code>&lt;timestamp&gt;.&lt;rawBody&gt;</code> returns 200. <code>mvn -q test -Dtest=InternalAiControllerTest</code> and <code>uv run pytest tests/test_provider_config_signing.py -q</code> pass, including a blank secret returning 401.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any unsigned or stale call returns tenant provider keys. Also fails if ai-services logs no error on a 401 and quietly falls back to platform keys.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-10">
+      <div class="test-top"><span class="tid">G21-10</span><span class="tname">The Saynee webhook checks the signature first</span><input class="chk" type="checkbox" aria-label="G21-10 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With <code>SAYNEE_WEBHOOK_SECRET</code> blank, a call to <code>/api/webhooks/saynee/acme</code> returns 401. With it set: unsigned calls to <code>/acme</code> and to <code>/nope</code> return 401 with identical bodies, and one signed in <code>X-Saynee-Signature</code> returns 200. Commands are in <code>runbooks/local-stack-and-smoke-tests.md</code> §4.8. <code>mvn -q test -Dtest=SayneeWebhookControllerTest</code> passes.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A blank secret lets a call through, or the two 401s differ, which reveals which tenants exist.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-11">
+      <div class="test-top"><span class="tid">G21-11</span><span class="tname">A production boot has no demo data</span><input class="chk" type="checkbox" aria-label="G21-11 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With Docker running, <code>mvn -q test -Dtest=NoSeedBootIT</code> passes, which is what CI runs. With the default locations: 0 tenants, 0 users, <code>shedlock</code> exists and <code>attendance_status</code> accepts <code>ATTENDED_REMOTE</code>. Negative: with compose's locations there are 2 tenants, and the local stack still logs in as <code>admin</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The default boot creates a tenant or a known password, or the sweeps fail because <code>shedlock</code> went away with the seed.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-12">
+      <div class="test-top"><span class="tid">G21-12</span><span class="tname">The operator has a reachable login</span><input class="chk" type="checkbox" aria-label="G21-12 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>grep -n BOOTSTRAP_PLATFORM_TENANT_SLUG k8s/configmap.yaml</code> shows <code>platform</code>. On a real cluster, with the bootstrap email and password set on an empty database, sign in at <code>platform.&lt;your domain&gt;</code>. Negative: in a browser, the bare domain resolves to no tenant, so a login there is refused. A client sending <code>X-Tenant-Slug</code> still selects a tenant there, and that is expected: the password and the token's tenant check still apply.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The slug is still <code>_platform</code>, which cannot be a sub-domain, leaving the operator no way in.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-13">
+      <div class="test-top"><span class="tid">G21-13</span><span class="tname">Signup is off unless switched on</span><input class="chk" type="checkbox" aria-label="G21-13 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Stop <code>api</code>, then run it with <code>docker compose -f docker-compose.dev.yml run --rm --no-deps --service-ports --name boardhub-api-signup -e APP_TENANCY_SIGNUP_ENABLED=false api</code>. <code>POST /api/signup</code> and <code>POST /api/auth/verify-email</code> for a signup both refuse with a clear business error. Negative: with compose's own setting, §4.3 of the local-stack runbook works end to end. Start <code>api</code> again afterwards. <code>mvn -q test -Dtest=SignupServiceTest</code> passes, including the dev hint off giving a null <code>verificationDevHint</code>.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Signup creates a tenant with the flag off. There is no real mail sender, so the link would only reach the log.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-14">
+      <div class="test-top"><span class="tid">G21-14</span><span class="tname">The k8s manifests carry no dev settings</span><input class="chk" type="checkbox" aria-label="G21-14 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>grep -v '^ *#' k8s/configmap.yaml | grep -E 'SIGNUP_DEV_HINT|DEFAULT_TENANT_SLUG|acme|REDIS'</code> finds nothing. <code>k8s/redis.yaml</code> is gone. <code>allow-default-tenant</code> is <code>"false"</code>, the JWT and HMAC values in <code>secret.example.yaml</code> are blank, <code>ingress.yaml</code> has a <code>tls:</code> block, and <code>api</code> and <code>ui</code> have 2 replicas while <code>ai-services</code> has 1. Negative: a Secret applied from the template unfilled stops the API at boot. Image tags stay on <code>:develop</code> until F88, so that part of F89 stays open.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A demo or dev setting is back, or <code>ai-services</code> runs more than one replica, which breaks agent resume.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-15">
+      <div class="test-top"><span class="tid">G21-15</span><span class="tname">NetworkPolicy holds on a real cluster</span><input class="chk" type="checkbox" aria-label="G21-15 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On a cluster whose CNI enforces policy, follow <code>k8s/README.md</code>, "Network policies". From an unlabelled pod, <code>wget -T3 -qO- http://opensearch:9200</code> times out. From <code>ai-services</code> it answers. The UI loads and the assistant reaches its LLM vendor. Owner's check: no cluster has been used for this.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The unlabelled pod reaches OpenSearch, which has no auth. Also fails if the UI pod crashes on DNS or the assistant cannot reach its vendor, which means the policy is too tight.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-16">
+      <div class="test-top"><span class="tid">G21-16</span><span class="tname">A tunnel can log in, and a stranger's origin cannot</span><input class="chk" type="checkbox" aria-label="G21-16 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Through nginx with <code>Host: t.example</code>, <code>X-Forwarded-Proto: https</code> and a wrong password: <code>Origin: https://t.example</code> returns 400 <code>AUTH_INVALID_CREDENTIALS</code>. Negative: <code>Origin: https://evil.example</code> returns 403. <code>/</code>, <code>/index.html</code>, <code>/i18n/en.json</code> and a <code>main-*.js</code> each carry every security header. SSE over a real named tunnel is the owner's check.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The first returns 403, so same-origin logins through a tunnel still fail. The second is accepted. Or a path has lost its headers.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-17">
+      <div class="test-top"><span class="tid">G21-17</span><span class="tname">Published ports are local only</span><input class="chk" type="checkbox" aria-label="G21-17 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker ps --format '{{.Names}} {{.Ports}}' | grep boardhub</code> shows <code>127.0.0.1</code> on every published port, after the stack is recreated with this compose file. Negative: <code>curl -m 3 http://$(ipconfig getifaddr en0):4200</code> is refused.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A port shows <code>0.0.0.0</code> or answers on the LAN address. A client reaching <code>api</code> directly could pose as a trusted proxy and spoof forwarded headers.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-18">
+      <div class="test-top"><span class="tid">G21-18</span><span class="tname">API docs are off by default, and H2 is gone</span><input class="chk" type="checkbox" aria-label="G21-18 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>On compose, <code>/api/v3/api-docs</code> returns 200 and <code>/api/swagger-ui.html</code> returns 302. Negative: stop <code>api</code> and run it as in G21-13 with <code>-e APP_API_DOCS_ENABLED=false</code>. Both return 404, and <code>/api/h2-console/</code> returns 401.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The docs answer with the flag off, publishing the whole API surface.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-19">
+      <div class="test-top"><span class="tid">G21-19</span><span class="tname">A tenant cannot choose where the LLM call goes</span><input class="chk" type="checkbox" aria-label="G21-19 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>uv run pytest tests/test_provider_params.py -q</code> passes: <code>api_base</code>, <code>model</code> and <code>extra_headers</code> are removed, <code>temperature</code> is kept and <code>reasoning_effort</code> still reaches the call. <code>mvn -q test -Dtest=SettingServiceAiProviderTest</code> passes: flag off with <code>apiBase</code> is a business error, flag on saves. On compose, with the flag on, a tenant's own Ollama URL still saves.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>A saved <code>api_base</code> reaches LiteLLM, which would send the platform's key to a host the tenant picked.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-20">
+      <div class="test-top"><span class="tid">G21-20</span><span class="tname">A tenant admin cannot grant SUPER_ADMIN</span><input class="chk" type="checkbox" aria-label="G21-20 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>As a TENANT_ADMIN who is not SUPER_ADMIN (<code>test8</code> locally), <code>/users/{own id}/roles</code> with <code>["SUPER_ADMIN"]</code> returns 403 and no row changes, and <code>GET /admin/tenants</code> returns 403. <code>mvn -q test -Dtest=RoleGrantGuardTest</code> passes on all four paths, including <code>PATCH /task-settings/permissions/{id}</code>. Negative: the same admin setting <code>BOARD_MEMBER</code> succeeds, and a SUPER_ADMIN can grant it.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any path applies the role, or a denial comes back as 500. Also fails if the TaskSettings path writes no audit row.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-21">
+      <div class="test-top"><span class="tid">G21-21</span><span class="tname">A script in an attachment does not run</span><input class="chk" type="checkbox" aria-label="G21-21 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Upload a <code>.doc</code> that starts with <code>&lt;script&gt;</code> and sets a <code>localStorage</code> probe, and preview it from both the attachment preview and agenda item create. The probe stays unset. Negative: a real PDF and an image still render. <code>npx ng test --include='src/app/core/utils/safe-preview.spec.ts'</code> passes: <code>text/html;a=pdf</code> is not a PDF, <code>application/pdf;x=1</code> is, and the output blob type is forced.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The probe is set, which means the file read the login tokens. Also fails if a real PDF no longer previews.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-22">
+      <div class="test-top"><span class="tid">G21-22</span><span class="tname">ai-curl.sh has no built-in secret</span><input class="chk" type="checkbox" aria-label="G21-22 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>With <code>AI_SERVICE_HMAC_SECRET</code> set or in <code>.env</code>, <code>scripts/ai-curl.sh GET /v1/health</code> answers. Negative: with neither, it exits 1 and names the variable, before calling anything.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>It signs with a value from the script. That value would still work on any stack nobody rotated.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-23">
+      <div class="test-top"><span class="tid">G21-23</span><span class="tname">Wrong passwords sent together are all counted, and none is a 500</span><input class="chk" type="checkbox" aria-label="G21-23 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Use a throwaway user (<code>test9</code> locally). Send 12 wrong logins at once to <code>localhost:8080/api/auth/login</code> with <code>X-Tenant-Slug: acme</code>. All 12 return 400: 5 with <code>AUTH_INVALID_CREDENTIALS</code> and 7 with <code>AUTH_ACCOUNT_LOCKED</code>. The row ends <code>LOCKED</code> with a count of 5. <code>mvn -q test -Dtest=AuthLockoutTest</code> covers the same on H2. Negative: on another reset user, 6 right passwords at once all return 200. Reset both rows afterwards.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any 500, or a count below 5. Attempts conflicted on the row's version, so most were lost, a real login in the same burst failed, and an attacker got more guesses than the lock allows.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-24">
+      <div class="test-top"><span class="tid">G21-24</span><span class="tname">A refresh token does not outlive the account</span><input class="chk" type="checkbox" aria-label="G21-24 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Log in as a throwaway user and keep the refresh token. Set the user <code>LOCKED</code> through <code>PATCH /users/{id}/status</code>: <code>POST /api/auth/refresh</code> returns 400 <code>AUTH_ACCOUNT_LOCKED</code>. Set <code>INACTIVE</code>: 400 <code>AUTH_ACCOUNT_INACTIVE</code>. Set <code>is_deleted = true</code> by SQL: 400 <code>AUTH_INVALID_TOKEN</code>, and the password login is refused too. Negative: back to ACTIVE, not deleted, the same token still returns 200. Reset the row afterwards.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of the three returns new tokens. An admin's lock only stopped password logins, and the session could renew itself forever. An access token already issued still works until it expires (F98): that is not a failure of this check.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-25">
+      <div class="test-top"><span class="tid">G21-25</span><span class="tname">A tenant admin cannot lock, re-email or delete a super admin</span><input class="chk" type="checkbox" aria-label="G21-25 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Have <code>admin</code> grant a throwaway user <code>SUPER_ADMIN</code>. As <code>test8</code> (TENANT_ADMIN), <code>PATCH /users/{id}/status?status=LOCKED</code>, <code>PATCH /users/{id}</code> with a new <code>email</code>, and <code>DELETE /users/{id}</code> each return 403 and the row is unchanged. <code>mvn -q test -Dtest=RoleGrantGuardTest</code> passes. Negative: <code>test8</code> can still do all three to an ordinary user, and can still edit the super admin's name. Restore the roles afterwards.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of the three succeeds. An admin's lock never expires, so a tenant admin could shut a higher-tier user out for good.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-26">
+      <div class="test-top"><span class="tid">G21-26</span><span class="tname">A suspended tenant cannot get in through its token alone</span><input class="chk" type="checkbox" aria-label="G21-26 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p>Suspend a throwaway tenant. With a token from that tenant, send <code>GET /api/users</code> three ways: <code>X-Tenant-Slug: nosuchtenant</code>, a <code>Host</code> with an unknown sub-domain, and <code>X-Tenant-Slug: BAD!!</code>. Each returns 423 <code>TENANT_NOT_ACTIVE</code>, the same as the tenant's own host. <code>POST /api/users</code> the same way returns 423 and creates no row. <code>mvn -q test -Dtest=JwtAuthenticationFilterTest</code> passes. Negative: <code>/api/auth/login</code> still answers for that tenant, and an ACTIVE tenant's token sent with an unknown slug returns 200. Reactivate the tenant afterwards.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>Any of them returns 200 or 201. TenantFilter only gates a tenant it resolved, and the token path then adopted the suspended tenant.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-27">
+      <div class="test-top"><span class="tid">G21-27</span><span class="tname">ai-services refuses a request with two tenant headers</span><input class="chk" type="checkbox" aria-label="G21-27 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>uv run pytest tests/test_inbound_auth.py -q</code> passes. Live: sign a request for <code>acme</code> and send it to <code>:8081/v1/health/active</code> with <code>X-Tenant-Slug: other</code> then <code>X-Tenant-Slug: acme</code>. It returns 401, and in the reverse order too. Negative: one correct header returns the route's normal answer.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The first order returns anything but 401. The signature checked one tenant while the handler used the other, so a captured request could be replayed against any tenant.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-28">
+      <div class="test-top"><span class="tid">G21-28</span><span class="tname">A refused service login is not repeated, and cannot lock its namesake</span><input class="chk" type="checkbox" aria-label="G21-28 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>uv run pytest tests/test_magales_auth.py -q</code> passes. <code>grep -n MAGALES_SERVICE k8s/secret.example.yaml</code> shows both values blank. Live, on a scratch stack only: run ai-services with a service username that matches a throwaway user and a wrong password, and call <code>/api/ai/assist/insights</code> ten times. That user's <code>failed_login_attempts</code> rises by one, not twenty, and the log has one <code>REJECTED the service account</code> line. Negative: stop the API and the next call still tries again, because that is not a refusal.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The count rises with each AI request. Three requests used to lock the only operator, and any later request locked them again.</p></div>
+      </div>
+    </article>
+
+    <article class="test" data-id="G21-29">
+      <div class="test-top"><span class="tid">G21-29</span><span class="tname">Local Whisper works in the built image</span><input class="chk" type="checkbox" aria-label="G21-29 passed"></div>
+      <div class="meta">
+        <div><p class="lbl pass">Expect</p><p><code>docker exec boardhub-ai-services python -c "import av; print(av.__version__)"</code> prints a version below 19. <code>uv run pytest tests/test_transcription_provider.py -q</code> passes. Then transcribe a short recording with <code>provider=whisper</code>: it returns text, with the engine named <code>whisper</code>. The first call may download the model. Negative: <code>uv run --with av==19.0.0 python -m pytest tests/test_transcription_provider.py -q</code> fails on <code>metadata_errors</code>, which is why the version is capped.</p></div>
+        <div><p class="lbl fail">Fails if</p><p>The call returns 502 with <code>metadata_errors</code> in the ai-services log. Whisper is the fallback when OpenRouter refuses a recording, so a recording would end in "Notes not finished". OpenRouter's own 402 on a recording after a pause is a separate open item (F100).</p></div>
+      </div>
+    </article>
+  </section>
+
   <footer>
-    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G16</b> on 12 September for fifteen migrations that had never once executed, the constraint that was holding them back, and a seed that only knew about one tenant; <b>G17</b> on 13 September for suspension that finally suspends and seats that are finally a limit; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
+    <p>Sections <b>R</b>, <b>P</b> and <b>V</b> were added 29 August 2026; <b>D</b> and <b>X</b> on 30 August when reminder delivery closed the R9 gap; <b>K</b>, <b>W</b> and <b>Z</b> later the same day for the reminder card, the assistant's workspace and timezone handling; <b>L</b>, <b>Q</b>, <b>T</b> and <b>O</b> on 1 September for cross-lingual retrieval, precedent detection, the mid-run interrupt and the Lucide icon migration; <b>Y</b>, <b>H</b> and <b>J</b> on 4 September for the co-edited draft, reminder provenance and the date/page corrections; <b>G8</b> to <b>G11</b> on 4 September for the collected rating, the insert menu and one clock across the platform; <b>G12</b> on 5 September for standing, delegation and the Library upload, <b>G13</b> the same day for recovering from a service token the backend has stopped accepting, and <b>G14</b> on 6 September for the recording that nginx cut at sixty seconds and the transcript that was one phrase repeated; <b>G15</b> on 9 September for the substitute nomination whose screens shipped to <code>develop</code> before the endpoint behind them existed, and the enum value Postgres refused; <b>G16</b> on 12 September for fifteen migrations that had never once executed, the constraint that was holding them back, and a seed that only knew about one tenant; <b>G17</b> on 13 September for suspension that finally suspends and seats that are finally a limit; <b>G2</b>, <b>G3</b> and <b>G4</b> the same day for inline linking, agent navigation and activity disclosure; <b>G5</b> and <b>G6</b> for record-specific next actions and the activity phase every tool must have; and <b>G7</b> for the legibility round — visible links, a chip that moves, and answer affordances. <b>G21</b> was added on 2 November 2026 for the security batch that closes the holes before first exposure. V4 still records a deliberate gap, so read it before filing a bug. Baseline for sections A–I captured 28 August 2026 from the <code>boardhub</code> stack. The scheduled decision-escalation job adds a follow-up agenda item when a decision passes 7 days overdue, so the <span class="num">15</span> may drift upward on its own — re-read the count from the Agenda Items page before treating a mismatch as a bug.</p>
   </footer>
 
 </div>

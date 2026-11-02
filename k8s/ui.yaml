@@ -33,7 +33,7 @@ metadata:
     app.kubernetes.io/name: ui
     app.kubernetes.io/part-of: boardhub
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: ui

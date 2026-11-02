@@ -11,6 +11,7 @@
 #       └── docker-compose.dev.yml
 #
 # Run from inside this directory:
+#   cp .env.example .env      (once; JWT_SECRET is required, see .env.example)
 #   docker compose -f docker-compose.dev.yml up --build
 #   docker compose -f docker-compose.dev.yml down
 #
@@ -20,6 +21,9 @@
 #   - minio    (9000/9001)   S3-compatible object store (Day 5+)
 #   - api      (8080)        Spring Boot backend
 #   - ui       (4200 → 80)   Angular UI served by nginx
+#
+# Every published port binds to 127.0.0.1. A client that reaches a published port from the
+# network would look like a trusted proxy to the API and could spoof forwarded headers (F94).
 # ────────────────────────────────────────────────────────────
 
 name: boardhub
@@ -33,7 +37,7 @@ services:
       POSTGRES_USER: magales
       POSTGRES_PASSWORD: magales-dev
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -47,7 +51,7 @@ services:
     image: redis:7-alpine
     container_name: boardhub-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -63,8 +67,8 @@ services:
       MINIO_ROOT_USER: magales
       MINIO_ROOT_PASSWORD: magales-dev-secret
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # web console
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9001:9001"   # web console
     volumes:
       - miniodata:/data
     healthcheck:
@@ -78,8 +82,8 @@ services:
     image: mailhog/mailhog:latest
     container_name: boardhub-mailhog
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI
+      - "127.0.0.1:1025:1025"   # SMTP
+      - "127.0.0.1:8025:8025"   # Web UI
     restart: unless-stopped
 
   api:
@@ -101,13 +105,22 @@ services:
       DB_NAME: magales
       DB_USER: magales
       DB_PASSWORD: magales-dev
-      JWT_SECRET: dev-jwt-secret-change-me-32-chars-or-more-please-rotate
+      JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in .env, see .env.example}"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: magales
       S3_SECRET_KEY: magales-dev-secret
       S3_BUCKET: magales-docs
+      # ── Local stack only (F71, F89) ──
+      # k8s sets none of these and gets the API's safe defaults. The first one lets the API boot
+      # with the dev values in this file; with it off, the startup guard refuses them.
+      APP_SECURITY_ALLOW_DEV_CONFIG: "true"
+      # Schema repairs always run. The demo seed (tenants, users, known passwords) runs only here.
+      APP_SQL_INIT_LOCATIONS: "classpath:schema-repairs-postgres.sql,classpath:data-postgres.sql"
+      APP_API_DOCS_ENABLED: "true"
+      APP_TENANCY_SIGNUP_ENABLED: "true"
+      APP_AI_ALLOW_TENANT_ENDPOINTS: "true"
       # ── Tenancy (Day 2) ──
       APP_TENANCY_ALLOW_DEFAULT_TENANT: "true"
       APP_TENANCY_DEFAULT_TENANT_SLUG: "acme"
@@ -133,7 +146,7 @@ services:
       MAIL_STARTTLS: "false"
       MAIL_FROM: "noreply@magales.app"
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     restart: unless-stopped
 
   opensearch:
@@ -151,7 +164,7 @@ services:
     volumes:
       - opensearchdata:/usr/share/opensearch/data
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
@@ -235,7 +248,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "4200:80"
+      - "127.0.0.1:4200:80"
     healthcheck:
       # 127.0.0.1, not localhost. nginx binds IPv4 only (`listen 80`), while the image's
       # /etc/hosts maps localhost to ::1 as well — busybox wget picks the IPv6 address and gets

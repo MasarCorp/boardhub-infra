@@ -7,21 +7,28 @@ no Kustomize, no cloud-specific fields.
 > These manifests were validated with `kubectl apply --dry-run=client` only.
 > **No cloud access was used to test them — validate on your own cluster.**
 
-The topology mirrors `docker-compose.dev.yml` (main branch): 7 services.
+The topology follows `docker-compose.dev.yml`: 6 services. Redis is left out because nothing
+in the api or ai-services uses it.
+
+These manifests are the production shape, so they differ from compose on purpose: no demo seed,
+no dev hint, no default tenant, signup and API docs off, and the api refuses to boot on published
+or missing secrets. `boardhub.example.com` is a placeholder until the real domain is known.
 
 | Component | Kind | Image | Port(s) | Persistence |
 |---|---|---|---|---|
 | postgres | StatefulSet | `pgvector/pgvector:pg15` | 5432 | 5Gi PVC |
-| redis | StatefulSet | `redis:7-alpine` | 6379 | 1Gi PVC (AOF) |
 | minio | StatefulSet | `minio/minio:latest` | 9000, 9001 | 10Gi PVC |
 | opensearch | StatefulSet | `opensearchproject/opensearch:2.17.1` | 9200 | 10Gi PVC |
-| api | Deployment | `ghcr.io/masarcorp/boardhub-api:develop` | 8080 | — |
+| api | Deployment, 2 replicas | `ghcr.io/masarcorp/boardhub-api:develop` | 8080 | — |
 | ai-services | Deployment | `ghcr.io/masarcorp/boardhub-ai-services:develop` | 8081 | 10Gi PVC (model cache) |
-| ui | Deployment | `ghcr.io/masarcorp/boardhub-ui:develop` | 80 | — |
+| ui | Deployment, 2 replicas | `ghcr.io/masarcorp/boardhub-ui:develop` | 80 | — |
 
 Everything runs in the `boardhub` namespace. Services talk to each other by
-in-cluster DNS Service name (`postgres`, `redis`, `minio`, `opensearch`, `api`,
+in-cluster DNS Service name (`postgres`, `minio`, `opensearch`, `api`,
 `ai-services`) — no hardcoded IPs.
+
+`ai-services` stays at 1 replica: it has a single-node model cache, and a run in progress lives in
+one pod, so a second replica would break agent resume.
 
 ---
 
@@ -64,12 +71,14 @@ kubectl create secret generic boardhub-secrets \
   --from-literal=POSTGRES_PASSWORD='CHANGE-ME' \
   --from-literal=DB_USER=magales \
   --from-literal=DB_PASSWORD='CHANGE-ME' \
-  --from-literal=JWT_SECRET='CHANGE-ME-32-chars-or-more-please-rotate' \
+  --from-literal=JWT_SECRET="$(openssl rand -base64 48)" \
   --from-literal=MINIO_ROOT_USER=magales \
   --from-literal=MINIO_ROOT_PASSWORD='CHANGE-ME-secret' \
   --from-literal=S3_ACCESS_KEY=magales \
   --from-literal=S3_SECRET_KEY='CHANGE-ME-secret' \
-  --from-literal=AI_SERVICE_HMAC_SECRET='CHANGE-ME-hmac-32-chars-min' \
+  --from-literal=AI_SERVICE_HMAC_SECRET="$(openssl rand -base64 48)" \
+  --from-literal=MAGALES_SERVICE_USERNAME='CHANGE-ME-service-account' \
+  --from-literal=MAGALES_SERVICE_PASSWORD='CHANGE-ME' \
   --from-literal=SAYNEE_WEBHOOK_SECRET='' \
   --from-literal=BOOTSTRAP_SUPER_ADMIN_EMAIL='' \
   --from-literal=BOOTSTRAP_SUPER_ADMIN_PASSWORD='' \
@@ -82,9 +91,22 @@ Constraints (they share credentials): `POSTGRES_USER/PASSWORD` == `DB_USER/PASSW
 `MINIO_ROOT_USER/PASSWORD` == `S3_ACCESS_KEY/SECRET_KEY`, and
 `AI_SERVICE_HMAC_SECRET` must be identical for api and ai-services.
 
+The api refuses to boot if `JWT_SECRET` or `AI_SERVICE_HMAC_SECRET` is blank, under 32 bytes, or
+contains any of `change-me`, `changeme`, `secret`, `placeholder`, `example` or `please`, in any case.
+Use a generated value. Set `BOOTSTRAP_SUPER_ADMIN_EMAIL` and `BOOTSTRAP_SUPER_ADMIN_PASSWORD` before
+the first boot: with no demo seed they create the only way in, an operator at
+`platform.<your domain>`.
+
+The service account is one username that ai-services uses for every tenant. A tenant without that
+user gets empty AI tools for now (F46, F62). Keep it apart from any person's username, and from
+`admin`, the operator's default: a wrong service password counts as a failed login against whoever
+has that name, and five lock them. After a refused login ai-services waits an hour before trying
+that tenant again, or until it restarts.
+
 > Alternatively, edit `k8s/secret.example.yaml` and
 > `kubectl apply -f k8s/secret.example.yaml` — fine for a throwaway eval, but it
-> puts secrets in a file. Do not commit real values.
+> puts secrets in a file. Do not commit real values. The JWT and HMAC values in
+> that file are blank, so the api will not boot until you fill them in.
 
 ---
 
@@ -98,7 +120,6 @@ kubectl apply -f k8s/configmap.yaml
 
 # stateful/infra
 kubectl apply -f k8s/postgres.yaml
-kubectl apply -f k8s/redis.yaml
 kubectl apply -f k8s/minio.yaml
 kubectl apply -f k8s/opensearch.yaml
 
@@ -106,6 +127,9 @@ kubectl apply -f k8s/opensearch.yaml
 kubectl apply -f k8s/api.yaml
 kubectl apply -f k8s/ai-services.yaml
 kubectl apply -f k8s/ui.yaml
+
+# network policies
+kubectl apply -f k8s/networkpolicy.yaml
 ```
 
 Or apply everything at once (kubectl orders by kind well enough; readiness
@@ -120,12 +144,30 @@ kubectl apply -f k8s/
 > your real ones). e.g. `kubectl apply -f k8s/ --prune` is **not** recommended;
 > just delete the example file locally or apply the specific files above.
 
+> **First boot on an empty database:** two api pods start together, and only the migrations take
+> a lock. Hibernate's schema update and the bootstrap runner can collide, and the losing pod
+> crashes and restarts. To avoid the noise, start with
+> `kubectl scale -n boardhub deployment/api --replicas=1` and scale back to 2 once it is ready.
+
+> **Upgrading a database that already holds the demo seed:** the api refuses to boot while an ACTIVE
+> or timed-locked user holds a seeded password, and the admin UI is down at that point, so this takes
+> SQL. If it only holds demo data, start again on an empty database, which is the only way to get the
+> `platform` operator: `BootstrapRunner` does nothing once any tenant exists. To keep the data, set a
+> new bcrypt hash on a SUPER_ADMIN you keep, then deactivate the rest. The two seeded hashes are in
+> `SeededCredentialCheck.java`, and the demo tenants stay:
+> `kubectl exec -n boardhub postgres-0 -- psql -U magales -d magales -c "UPDATE users SET status = 'INACTIVE', locked_until = NULL WHERE password_hash IN ('<hash a>', '<hash b>')"`
+> Do not set `APP_SECURITY_ALLOW_DEV_CONFIG` to get past this.
+
+> **Upgrading a cluster that already runs Redis:** remove it by hand. This also deletes its data,
+> which nothing reads:
+> `kubectl delete -n boardhub statefulset/redis service/redis pvc/redisdata-redis-0`
+
 ---
 
 ## 4. Verify
 
 ```bash
-# Watch pods come up (postgres/redis/minio/opensearch first, then apps).
+# Watch pods come up (postgres/minio/opensearch first, then apps).
 kubectl get pods -n boardhub -w
 
 # All should reach Running + READY 1/1:
@@ -165,12 +207,21 @@ kubectl port-forward -n boardhub svc/ui 8082:80 &
 Default is `ClusterIP` (in-cluster only). Two portable ways to expose it — pick one:
 
 **Option A — Ingress (recommended).** Requires an Ingress controller in the
-cluster. Edit the host in `k8s/ingress.yaml`, set `ingressClassName` to your
-controller, then:
+cluster, and a real domain with a wildcard DNS record. Replace
+`boardhub.example.com` in `k8s/ingress.yaml` and in `k8s/configmap.yaml`
+(`APP_TENANCY_HOST_SUFFIXES`, `APP_TENANCY_VERIFICATION_BASE_URL`), set
+`ingressClassName` to your controller, then:
 
 ```bash
+# The certificate must cover both <your domain> and *.<your domain>.
+kubectl create secret tls boardhub-tls -n boardhub --cert=<fullchain.pem> --key=<privkey.pem>
 kubectl apply -f k8s/ingress.yaml
 ```
+
+A tenant is reached at `<slug>.<your domain>` and the operator at `platform.<your domain>`. In a
+browser the bare domain resolves to no tenant, because the default tenant is off and the UI sends no
+header. That is not an access rule: a client sending `X-Tenant-Slug` still selects a tenant there, and
+the password and the token's tenant check still apply.
 
 All traffic targets the `ui` Service; nginx inside the ui image forwards `/api/`
 to the api Service, so one backend covers both.
@@ -190,6 +241,26 @@ kubectl get svc -n boardhub ui -w   # wait for EXTERNAL-IP
 > The LoadBalancer **annotation differs per cloud** (internal-vs-internet, health
 > checks, etc.). We deliberately do NOT hardcode one. Add the annotation your
 > cloud needs under `metadata.annotations` of the `ui` Service.
+
+---
+
+## Network policies
+
+`k8s/networkpolicy.yaml` denies everything in the namespace, then allows only the paths the stack
+uses (the list is at the top of the file). OpenSearch has no auth, so this is its only protection.
+
+Enforcement depends on your CNI. A cluster without NetworkPolicy support applies the objects and
+ignores them, so prove it:
+
+```bash
+# From a pod with no allowed path: must time out.
+kubectl run np-probe -n boardhub --rm -it --restart=Never --image=busybox:1.36 -- \
+  wget -T3 -qO- http://opensearch:9200
+
+# From ai-services, which is allowed: must answer.
+kubectl exec -n boardhub deploy/ai-services -- \
+  python -c "import urllib.request as u; print(u.urlopen('http://opensearch:9200', timeout=3).status)"
+```
 
 ---
 
@@ -222,7 +293,7 @@ clouds — validate on yours.**
 
 **Setting a StorageClass explicitly** (if you have no default, or want a specific
 one): add `storageClassName: <name>` under each PVC's `spec` — that's the
-`volumeClaimTemplates` in `postgres.yaml`/`redis.yaml`/`minio.yaml`/`opensearch.yaml`
+`volumeClaimTemplates` in `postgres.yaml`/`minio.yaml`/`opensearch.yaml`
 and the standalone PVC in `ai-services.yaml`.
 
 **If privileged pods / host sysctls are blocked** (some managed/hardened
@@ -242,7 +313,7 @@ Heap is pinned via `-Xms512m -Xmx512m`, so leaving it off is safe for correctnes
 ## Notes on values
 
 - **DB name / usernames are `magales`**, not `boardhub` — these are load-bearing
-  (JDBC URL, seeded data) and mirror the compose file. A rebrand is a separate pass.
+  (JDBC URL) and mirror the compose file. A rebrand is a separate pass.
 - **Resource requests/limits are tunable starting points**, sized from the compose
   hints (OpenSearch 512m heap, JVM api, heavy faster-whisper). Adjust for your load.
 - **ai-services does not connect to Postgres directly** — it reaches the DB
