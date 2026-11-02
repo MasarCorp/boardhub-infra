@@ -1,0 +1,217 @@
+# Default deny for the boardhub namespace, then only the paths the stack uses.
+# OpenSearch runs without auth (DISABLE_SECURITY_PLUGIN), so this is its only protection.
+#
+# Enforcement depends on the cluster's CNI. On one without NetworkPolicy support these objects
+# apply cleanly and do nothing. Prove it on your cluster: see README.md, "Network policies".
+#
+# Allowed:
+#   anyone       -> ui:80
+#   ui           -> api:8080
+#   ai-services  -> api:8080
+#   api          -> ai-services:8081, postgres:5432, minio:9000
+#   ai-services  -> opensearch:9200
+#   ai-services  -> public internet:443 (LLM vendors, model downloads)
+#   all pods     -> DNS
+#
+# The api has no path to the internet because nothing it runs here needs one. Add a rule when
+# real SMTP or Saynee is configured.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# nginx resolves its upstream by name and dies if it cannot, so DNS comes first. Open on port 53
+# rather than tied to kube-system: DNS runs elsewhere on some clusters (NodeLocal DNS, for one).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# No `from`: the controller's namespace and source addresses differ per cloud (an ALB in IP mode
+# connects from VPC addresses), and ui is the public face anyway.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ui
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ui
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - ports:
+        - { protocol: TCP, port: 80 }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ui
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ai-services
+      ports:
+        - { protocol: TCP, port: 8080 }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ai-services
+      ports:
+        - { protocol: TCP, port: 8081 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio
+      ports:
+        - { protocol: TCP, port: 9000 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-services
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ai-services
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - { protocol: TCP, port: 8081 }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opensearch
+      ports:
+        - { protocol: TCP, port: 9200 }
+    # Public addresses only. Private ranges and the link-local cloud metadata address stay out.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - { protocol: TCP, port: 443 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+# The S3 port only. The console on 9001 stays closed, so reach it with kubectl port-forward.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minio
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - { protocol: TCP, port: 9000 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: opensearch
+  namespace: boardhub
+  labels:
+    app.kubernetes.io/part-of: boardhub
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: opensearch
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ai-services
+      ports:
+        - { protocol: TCP, port: 9200 }

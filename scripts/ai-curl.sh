@@ -9,7 +9,10 @@ secret="${AI_SERVICE_HMAC_SECRET:-}"
 if [ -z "$secret" ] && [ -f "$(dirname "$0")/../.env" ]; then
   secret="$(sed -n 's/^AI_SERVICE_HMAC_SECRET=//p' "$(dirname "$0")/../.env" | tail -1)"
 fi
-secret="${secret:-dev-ai-hmac-secret-change-me-32-chars-min}"
+if [ -z "$secret" ]; then
+  echo "ai-curl: AI_SERVICE_HMAC_SECRET is not set. Export it or add it to .env." >&2
+  exit 1
+fi
 tenant="${AI_TENANT:-acme}"
 ts="$(date +%s)"
 sig="$(printf '%s' "$ts.$method.$path.$tenant" | openssl dgst -sha256 -hmac "$secret" -r | cut -d' ' -f1)"

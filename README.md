@@ -40,6 +40,8 @@ Install one thing per OS, then run one setup command.
 
 ## 2. Start (one command)
 
+`.env` must hold `JWT_SECRET`, or compose refuses to start (see §5). Then:
+
 ```bash
 docker compose -f docker-compose.dev.yml up --build
 # ...or detached:
@@ -71,6 +73,8 @@ docker compose -f docker-compose.dev.yml down -v
 
 ## 4. What's running
 
+Every published port binds to `127.0.0.1`, so the stack is not reachable from your network.
+
 | Service | Port(s) | Purpose |
 |---|---|---|
 | **postgres** (pgvector) | 5432 | Primary DB; `pgvector` for embeddings |
@@ -81,14 +85,22 @@ docker compose -f docker-compose.dev.yml down -v
 | **ai-services** (Python) | 8081 | AI: transcription, insights, RAG |
 | **ui** (Angular + nginx) | 4200 → 80 | SPA |
 
-## 5. Optional: `.env` for live AI
+## 5. `.env`
 
-`.env` is **optional** — every variable has a working default, so the stack
-boots without one. You only need it to enable **live AI** calls, by supplying
-the provider keys you want:
+`.env` is **required** for one value: `JWT_SECRET` signs every login token and has
+no default. Create the file once:
 
 ```bash
-# .env (all optional)
+cp .env.example .env
+# Set JWT_SECRET to the output of:
+openssl rand -base64 48
+```
+
+Everything else is optional. You only need more to enable **live AI** calls, by
+supplying the provider keys you want:
+
+```bash
+# .env (optional)
 OPENROUTER_API_KEY=...
 ANTHROPIC_API_KEY=...
 GROQ_API_KEY=...

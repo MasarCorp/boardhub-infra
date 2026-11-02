@@ -7,7 +7,11 @@
 #   - `ingressClassName` must match a controller installed in YOUR cluster.
 #     Common values: "nginx" (ingress-nginx), "alb" (AWS), "gce" (GKE).
 #   - Do NOT hardcode cloud-specific annotations here; add them per environment.
-#   - Replace boardhub.example.com with your real host (or remove `host:` to match all).
+#   - boardhub.example.com is a placeholder until the real domain is known. Replace it
+#     everywhere below and in configmap.yaml (host suffix, verification URL).
+#   - TLS needs the Secret `boardhub-tls` with a certificate that covers both the host and
+#     the wildcard. See README.md, "Exposing the UI". The wildcard rule is what makes
+#     tenants, and the operator at platform.<host>, reachable.
 #
 # All traffic goes to the `ui` Service; nginx inside the ui image forwards /api/
 # to the api Service, so a single backend is enough.
@@ -24,8 +28,23 @@ metadata:
   #   nginx.ingress.kubernetes.io/proxy-body-size: "50m"   # ingress-nginx: allow doc/audio uploads
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - boardhub.example.com
+        - "*.boardhub.example.com"
+      secretName: boardhub-tls
   rules:
     - host: boardhub.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ui
+                port:
+                  number: 80
+    - host: "*.boardhub.example.com"
       http:
         paths:
           - path: /

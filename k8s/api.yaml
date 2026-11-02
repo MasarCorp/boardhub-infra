@@ -29,7 +29,9 @@ metadata:
     app.kubernetes.io/name: api
     app.kubernetes.io/part-of: boardhub
 spec:
-  replicas: 1
+  # ShedLock keeps the scheduled sweeps to one pod at a time (SchedulerLockConfig). Simulated Nafath
+  # keeps its transactions in one pod's memory, so NAFATH_SIMULATION_ENABLED needs 1 replica (F101).
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: api
@@ -48,7 +50,7 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-          # Non-secret config (DB_HOST/PORT/NAME, REDIS_*, S3_ENDPOINT/BUCKET,
+          # Non-secret config (DB_HOST/PORT/NAME, S3_ENDPOINT/BUCKET,
           # SPRING_PROFILES_ACTIVE, MANAGEMENT_HEALTH_MAIL_ENABLED, AI_SERVICES_BASE_URL,
           # APP_TENANCY_*). Unrelated keys in the ConfigMap are harmlessly ignored by Spring.
           envFrom:

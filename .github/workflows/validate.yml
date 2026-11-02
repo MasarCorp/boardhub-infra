@@ -66,6 +66,9 @@ jobs:
       # ── compose: structural validation of the dev stack ──
       - name: compose config
         if: ${{ !contains(inputs.skip, 'compose') }}
+        env:
+          # JWT_SECRET is required and CI has no .env. Only compose reads this, to interpolate.
+          JWT_SECRET: ci-compose-config-only-change-me
         run: |
           docker compose -f docker-compose.dev.yml config --quiet
           echo "### docker compose config: valid" >> "$GITHUB_STEP_SUMMARY"

@@ -1,5 +1,5 @@
 # ai-services — Python/FastAPI worker (transcription, insights, RAG).
-# Deployment + ClusterIP Service. Talks to opensearch, redis, and the api
+# Deployment + ClusterIP Service. Talks to opensearch and the api
 # (MAGALES_INTERNAL_BASE_URL). A PVC caches the embedding/Whisper models under
 # /models (HF_HOME=/models/hf) so they aren't re-downloaded on every restart.
 ---
@@ -67,7 +67,7 @@ spec:
             - name: http
               containerPort: 8081
           # Non-secret config from the ConfigMap (MAGALES_INTERNAL_BASE_URL, DEFAULT_PROVIDER,
-          # REDIS_*, OPENSEARCH_URL, OLLAMA_BASE_URL, TRANSCRIBE_*, WHISPER_MODEL, HF_HOME,
+          # OPENSEARCH_URL, OLLAMA_BASE_URL, TRANSCRIBE_*, WHISPER_MODEL, HF_HOME,
           # INSIGHTS_*). pydantic-settings ignores unrelated keys.
           envFrom:
             - configMapRef:
